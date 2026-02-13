@@ -35,7 +35,7 @@ async function init() {
             gameContainer.innerHTML = `
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
                     <p class="empty-state">Login to Keep Sticky</p>
-                    <a href="login.html" style="background: #000; color: #fff; padding: 12px 32px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 14px; transition: transform 0.2s ease; display: inline-block;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">Login / Signup</a>
+                    <a href="login.html" class="primary-btn">Login / Signup</a>
                 </div>
             `;
         }
@@ -148,18 +148,6 @@ async function checkNotifications(userId) {
     closeBtn.onclick = () => {
         notifPanel.style.display = 'none';
     };
-    
-    // 清除全部通知
-    const clearAllBtn = document.getElementById('clearAllNotifBtn');
-    if (clearAllBtn) {
-        clearAllBtn.onclick = () => {
-            notifList.innerHTML = '';
-            localStorage.setItem(lastReadKey, new Date().toISOString());
-            notifBadge.style.display = 'none';
-            notifBtn.classList.remove('has-notif');
-            notifPanel.style.display = 'none';
-        };
-    }
 
     // 点击外部关闭
     document.addEventListener('click', (e) => {

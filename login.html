@@ -8,12 +8,10 @@
     <link rel="stylesheet" href="css/layout.css">
     <style>
         body { justify-content: center; height: 100vh; padding: 0; background: #fafafa; }
-        .login-card { background: #fff; padding: 40px; border: 1px solid #000; width: 300px; text-align: center; box-shadow: 4px 4px 0 rgba(0,0,0,1); border-radius: 0; }
-        input { width: 100%; margin-bottom: 10px; box-sizing: border-box; padding: 10px; border: 1px solid #000; border-radius: 0; font-size: 14px; }
-        input:focus { outline: none; border: 2px solid #000; }
-        .login-btn { width: 100%; background: #000; color: #fff; padding: 12px; border: 2px solid #000; border-radius: 0; font-weight: bold; font-size: 14px; cursor: pointer; text-transform: uppercase; }
-        .login-btn:hover { background: #fff; color: #000; }
-        h1 { font-size: 32px; font-weight: 900; margin-bottom: 30px; }
+        .login-card { background: #fff; padding: 40px; border: 2px solid #000; width: 300px; text-align: center; box-shadow: 4px 4px 0 rgba(0,0,0,1); border-radius: 0; }
+        .login-card input { width: 100%; margin-bottom: 12px; box-sizing: border-box; padding: 12px; border: 2px solid #000; border-radius: 0; font-size: 14px; font-family: inherit; transition: all 0.2s ease; }
+        .login-card input:focus { outline: none; border: 2px solid #000; box-shadow: 2px 2px 0 rgba(0,0,0,0.3); }
+        h1 { font-size: 32px; font-weight: 900; margin-bottom: 30px; letter-spacing: -0.5px; }
     </style>
 </head>
 <body>
@@ -21,7 +19,7 @@
         <h1>Sticky.</h1>
         <input type="email" id="email" placeholder="Email">
         <input type="password" id="password" placeholder="Password">
-        <button id="loginBtn" class="login-btn">Login / Sign Up</button>
+        <button id="loginBtn" class="primary-btn full-width">Login / Sign Up</button>
         <p id="msg" style="font-size:12px; margin-top:15px;"></p>
         <a href="index.html" style="font-size:12px; color:#888; text-decoration:none; display:block; margin-top:20px;">← Back</a>
     </div>

@@ -27,9 +27,10 @@
         .rank-item { 
             display: flex; justify-content: space-between; align-items: center; 
             padding: 12px 16px; background: #fff; border-radius: 0; 
-            border: 1px solid #000; cursor: pointer; transition: all 0.2s ease;
+            border: 2px solid #000; cursor: pointer; transition: all 0.2s ease;
         }
-        .rank-item:active { transform: none; background: #fafafa; }
+        .rank-item:hover { transform: translateY(-2px); box-shadow: 4px 4px 0 rgba(0,0,0,1); }
+        .rank-item:active { transform: translateY(0); box-shadow: 2px 2px 0 rgba(0,0,0,1); }
         
         /* 左侧信息 */
         .rank-left { display: flex; align-items: center; gap: 15px; }
@@ -47,7 +48,8 @@
 
         /* Groups & Action */
         .my-groups-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .group-card { background: #fff; padding: 15px; border-radius: 0; text-align: center; cursor: pointer; border: 1px solid #000; }
+        .group-card { background: #fff; padding: 15px; border-radius: 0; text-align: center; cursor: pointer; border: 2px solid #000; transition: all 0.2s ease; }
+        .group-card:hover { transform: translateY(-2px); box-shadow: 4px 4px 0 rgba(0,0,0,1); }
         .group-card.active { background: #000; color: #fff; border-color: #000; }
         .action-area { position: absolute; bottom: 20px; left: 20px; right: 20px; display: none; gap: 10px; }
         .action-area .primary-btn { flex: 1; }
@@ -90,7 +92,7 @@
 
             <div class="action-area" id="groupActions">
                 <button class="primary-btn" id="joinBtn">Join Group</button>
-                <button class="primary-btn secondary-btn" id="createBtn">Create New</button>
+                <button class="primary-btn btn-light" id="createBtn">Create New</button>
             </div>
             
             <div class="action-area" id="friendActions">

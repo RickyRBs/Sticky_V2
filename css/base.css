@@ -38,25 +38,7 @@ button:active {
     transform: scale(0.98);
 }
 
-.primary-btn {
-    background: #000;
-    color: #fff;
-    border: 2px solid #000;
-    padding: 8px 16px;
-    border-radius: 0;
-    font-weight: 600;
-    font-size: 12px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    transition: all 0.2s ease;
-}
-
-.primary-btn:hover {
-    background: #fff;
-    color: #000;
-    transform: translateY(-2px);
-    box-shadow: 3px 3px 0 rgba(0,0,0,1);
-}
+/* 按钮样式统一在 layout.css 中定义 */
 
 /* 基础输入框样式 */
 input {
