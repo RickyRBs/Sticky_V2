@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/profile.css">
+    <link rel="stylesheet" href="css/calendar.css">
+    <style>
+        body { overflow-y: auto; padding-top: 100px; padding-bottom: 40px; height: auto; }
+        .card { margin: 0 auto; }
+        .calendar-friends-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; flex-shrink: 0; }
+        .friend-checkins-section { margin: 0 !important; border-top: 1px solid #000; padding-top: 10px; display: flex; flex-direction: column; max-height: 200px; }
+        #friendCheckInsList { overflow-y: auto; flex: 1; }
+        .comments-section { margin-top: 10px !important; padding-top: 10px !important; border-top: 1px solid #000; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        #commentsList { overflow-y: auto; flex: 1; margin-bottom: 8px; }
+        .comment-input-area { flex-shrink: 0; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="index.html" class="logo">Sticky</a>
+        <nav class="topnav">
+            <a href="index.html">Home</a>
+        </nav>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="profile-header">
+                <div class="avatar-wrapper">
+                    <img id="avatar" class="avatar" src="assets/default.png" alt="avatar">
+                    <div id="avatarOverlay" class="avatar-overlay">👤</div>
+                    <input type="file" id="avatarInput" accept="image/*" style="display: none;">
+                </div>
+
+                <div class="profile-info">
+                    <div class="name-row">
+                        <h2 id="username">Loading...</h2>
+                        <button id="editNameBtn" class="icon-btn">✎</button>
+                    </div>
+                    
+                    <div id="editNameContainer" style="display:none; margin-top:5px;">
+                        <input type="text" id="newNameInput" placeholder="New name" style="width:120px; padding:5px;">
+                        <button id="saveNameBtn" class="primary-btn" style="padding:6px 10px; font-size:12px;">Save</button>
+                    </div>
+
+                    <!-- 用户 ID 显示 -->
+                    <div id="userIdDisplay" title="点击复制 ID">
+                        ID：<span id="userId">...</span>
+                    </div>
+                    
+                    <div id="userGroupsBadges" style="margin-top:8px; display:flex; gap:5px; flex-wrap:wrap;"></div>
+                    
+                    <!-- Sticky Friends 按钮（仅当访问别人时显示） -->
+                    <button id="friendCheckInBtn" class="friend-checkin-btn" style="display: none;">
+                        👋 Sticky Friend
+                    </button>
+                </div>
+                
+                <!-- 心情显示在右上角 -->
+                <div class="mood-badge" id="moodBadgeTop">
+                    <span id="moodText">...</span>
+                </div>
+                
+                <!-- Days Streak 显示在最右边 -->
+                <div id="streakCount" class="streak-display">
+                    <span class="streak-number">0</span>
+                    <span class="streak-label">DAYS<br>STREAK</span>
+                </div>
+            </div>
+
+            <div class="calendar-friends-wrapper">
+                <div id="calendarArea" class="calendar-wrapper">
+                    Loading Calendar...
+                </div>
+                
+                <!-- Sticky Friends 列表（仅自己的页面显示） -->
+                <div id="friendCheckInsSection" class="friend-checkins-section" style="display: none;">
+                    <h4 style="margin:0 0 10px 0; font-family:'Courier New', monospace; font-weight:800; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">👋 Sticky Friends</h4>
+                    <div id="friendCheckInsList">Loading...</div>
+                </div>
+            </div>
+
+            <div class="comments-section">
+                <h4 style="margin:0 0 10px 0; font-family:'Courier New', monospace; font-weight:800;">Sticky Notes</h4>
+                <div id="commentsList">Loading...</div>
+                <div class="comment-input-area">
+                    <input type="text" id="commentInput" placeholder="Leave a sticky note...">
+                    <button id="sendCommentBtn" class="primary-btn">→</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 注意：这里我们使用原来的 profileManager.js 逻辑，
+        // 但我们需要微调 profileManager.js 来支持“显示小组标签”。
+        // 为了方便，请直接覆盖 js/profileManager.js (见下一步)
+    </script>
+    <script type="module" src="js/profileManager.js"></script>
+</body>
+</html>

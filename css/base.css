@@ -1,0 +1,90 @@
+:root {
+    /* 全局配色变量 */
+    --bg-color: #fafafa;       /* 页面背景 */
+    --text-color: #000;        /* 主要文字黑 */
+    --card-bg: #fff;           /* 卡片背景白 */
+    --primary: #000;           /* 主题色 */
+    --radius: 0px;             /* 直角 */
+    --shadow: 4px 4px 0 rgba(0,0,0,1); /* 硬阴影 */
+}
+
+/* 基础重置 */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    /* 页面居中且禁止滚动 */
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 基础按钮样式 */
+button {
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.primary-btn {
+    background: #000;
+    color: #fff;
+    border: 2px solid #000;
+    padding: 8px 16px;
+    border-radius: 0;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+}
+
+.primary-btn:hover {
+    background: #fff;
+    color: #000;
+    transform: translateY(-2px);
+    box-shadow: 3px 3px 0 rgba(0,0,0,1);
+}
+
+/* 基础输入框样式 */
+input {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 12px;
+    font-family: inherit;
+    outline: none;
+    background: #fff;
+    transition: border-color 0.2s;
+}
+
+input:focus {
+    border-color: var(--primary);
+    background: #fff;
+}
+
+/* --- 核心修改：移除 input type="number" 的上下箭头 --- */
+
+/* 针对 Chrome, Safari, Edge, Opera */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+/* 针对 Firefox (加入了标准属性 appearance 以消除警告) */
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

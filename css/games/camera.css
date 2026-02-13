@@ -1,0 +1,65 @@
+/* css/games/camera.css */
+
+.camera-container {
+    position: relative;
+    width: 100%;
+    max-width: 320px; /* 限制最大宽度，不让它太大 */
+    aspect-ratio: 3 / 4; /* 保持 3:4 的比例，像拍立得一样 */
+    margin: 0 auto; /* 核心：让整个容器在卡片里水平居中 */
+    overflow: hidden;
+    border-radius: 20px;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.camera-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 确保画面填满容器，不会有黑边 */
+    display: block;
+    transform: scaleX(-1); /* 镜像翻转 */
+}
+
+/* 覆盖层：用于显示 Auto-scanning */
+.camera-overlay {
+    position: absolute;
+    inset: 0; /* 上下左右贴边 */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* 垂直居中 */
+    align-items: center;     /* 水平居中 */
+    pointer-events: none;    /* 让点击穿透 */
+    z-index: 10;
+}
+
+.scan-badge {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.scan-dot {
+    width: 8px;
+    height: 8px;
+    background: #4CAF50;
+    border-radius: 50%;
+    display: inline-block;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1); }
+}

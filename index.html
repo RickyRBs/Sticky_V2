@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sticky - Daily Check-in</title>
+    
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/games/math.css">
+    <link rel="stylesheet" href="css/games/slider.css">
+    <link rel="stylesheet" href="css/games/puzzle.css">
+    <link rel="stylesheet" href="css/games/camera.css">
+</head>
+<body>
+    <div class="topbar">
+        <a href="index.html" class="logo">Sticky</a>
+        <nav class="topnav">
+            <a href="leaderboard.html">Rank</a>
+            <a href="profile.html">Me</a>
+            <a href="gallery.html">Gallery</a>
+            <a id="authBtn" href="login.html">Login</a>
+        </nav>
+    </div>
+
+    <div class="container">
+        <div class="card" style="text-align: center;">
+            <div id="beforeCheckIn" style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <div id="streakDisplay" style="margin-bottom: 20px;">
+                    <span id="consecutiveDays" style="font-size: 36px; font-weight: 800; line-height: 1; display:block;">0</span>
+                    <div style="color:#888; margin-top: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">days streak</div>
+                </div>
+                
+                <div id="gameContainer" style="height: 380px; display: flex; align-items: center; justify-content: center; flex-direction: column; transition: opacity 0.3s ease; position: relative; overflow: hidden;">
+                    <p style="color:#aaa;">Loading...</p>
+                </div>
+
+                <div id="statusMessage" style="margin-top:15px; height:15px; font-size:11px; color:#666;"></div>
+            </div>
+
+            <div id="afterCheckIn" style="display: none; position: relative; opacity: 0; transition: opacity 0.5s ease-in; height: 100%; flex-direction: column; align-items: center; justify-content: center;">
+                <div style="font-size: 90px; font-weight: 900; line-height: 1; color: #111; margin-bottom: 15px;" id="finalStreak">0</div>
+                <div style="font-size: 18px; color: #888; text-transform: uppercase; letter-spacing: 2px;">Days Streak</div>
+                
+                <div style="margin-top: 30px; position: relative; display: inline-block;">
+                    <div id="currentMoodDisplay" style="font-size: 56px; cursor: pointer; user-select: none; transition: transform 0.2s ease;">✨</div>
+                    <div id="mainEmojiPicker" style="display: none; position: absolute; left: 50%; transform: translateX(-50%); top: 70px; background: white; padding: 15px; border: 1px solid #000; box-shadow: 4px 4px 0 rgba(0,0,0,1); z-index: 100; gap: 10px; flex-wrap: wrap; width: 280px;"></div>
+                </div>
+                
+                <div style="margin-top: 15px; font-size: 13px; color: #aaa;">See you tomorrow!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知按钮（左下角固定） -->
+    <div id="notificationBtn" class="notif-btn">
+        🔔
+        <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
+    </div>
+    
+    <!-- 通知弹出面板 -->
+    <div id="notificationPanel" class="notif-panel" style="display: none;">
+        <div class="notif-panel-header">
+            <h4 style="margin: 0; font-size: 14px; font-weight: 700;">Notifications</h4>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="clearAllNotifBtn" class="clear-notif-btn">Clear All</button>
+                <button id="closeNotifBtn" class="close-notif-btn">✕</button>
+            </div>
+        </div>
+        <div id="notificationList" class="notif-list"></div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

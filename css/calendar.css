@@ -1,0 +1,140 @@
+/* css/calendar.css */
+
+.calendar-wrapper {
+    margin-top: 0;
+    padding-top: 15px;
+    border-top: 1px solid #000;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-weight: 700;
+    font-size: 10px;
+    color: #000;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    margin-bottom: 8px;
+    max-width: 350px;
+}
+
+/* 星期表头 (S M T W T F S) */
+.weekday-label {
+    text-align: center;
+    font-size: 8px;
+    color: #666;
+    font-weight: 700;
+    margin-bottom: 2px;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* 日期格子基础样式 */
+.day-cell {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    border-radius: 0;
+    background: #fff;
+    color: #000;
+    position: relative;
+    user-select: none;
+    overflow: hidden;
+    border: 1.5px solid #000;
+    transition: none;
+    padding: 2px;
+}
+
+.day-cell > span:first-child {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 7px;
+    font-weight: 600;
+    opacity: 0.4;
+}
+
+.day-cell:hover {
+    border-width: 2px;
+}
+
+/* 今天的格子 */
+.day-cell.is-today {
+    border: 2px solid #000;
+    background: #fff;
+    color: #000;
+}
+
+.day-cell.is-today > span:first-child {
+    font-weight: 800;
+    opacity: 1;
+}
+
+/* 已签到的格子 */
+.day-cell.checked {
+    background: #fff;
+    color: #000;
+    border: 1.5px solid #000;
+}
+
+.day-cell.checked > span:first-child {
+    opacity: 0.6;
+}
+
+/* 今天且已签到 */
+.day-cell.is-today.checked {
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+}
+
+/* 过去的日子 - 灰色背景 */
+.day-cell.past {
+    background: #e0e0e0;
+    color: #666;
+}
+
+.day-cell.past > span:first-child {
+    color: #666;
+}
+
+.day-cell.past.checked {
+    background: #e0e0e0;
+    color: #000;
+}
+
+.day-cell.past.checked > span:first-child {
+    color: #666;
+}
+
+/* 格子里的 Emoji - 居中放大 */
+.day-mood {
+    font-size: 20px;
+    line-height: 1;
+}
+
+/* 未来的日子 */
+.day-cell.future {
+    background: #fff;
+    border: 1.5px solid #000;
+    color: #000;
+}
+
+.day-cell.future > span:first-child {
+    opacity: 0.3;
+}

@@ -1,0 +1,73 @@
+/* 滑块验证样式 */
+.slider-container {
+    padding: 15px 10px;
+    min-height: 350px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    user-select: none; /* 防止拖拽时选中文字 */
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.slider-track {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 40px auto 20px auto;
+    height: 16px;
+    background: #f0f0f0;
+    border-radius: 0;
+    border: 1px solid #000;
+}
+.slider-target {
+    position: absolute;
+    top: 0;
+    width: 24px;
+    height: 16px;
+    background: #e0e0e0; /* 目标缺口颜色 */
+    border-radius: 0;
+    z-index: 1;
+}
+/* 添加一个伪元素做标记 */
+.slider-target::after {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #ccc;
+}
+.slider-thumb {
+    position: absolute;
+    top: -12px;
+    left: 0;
+    width: 40px;
+    height: 40px;
+    background: #000;
+    border-radius: 0;
+    border: 2px solid #000;
+    cursor: grab;
+    z-index: 2;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+}
+.slider-thumb:active {
+    cursor: grabbing;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.5);
+}
+.slider-hint {
+    font-size: 13px;
+    color: #888;
+    margin-top: 10px;
+}

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <style>
+        body { overflow-y: auto; padding-top: 100px; padding-bottom: 40px; height: auto; }
+        .card { margin: 0 auto; position: relative; }
+        /* Tab 样式 */
+        .rank-tabs { display: flex; gap: 20px; margin: 0 0 20px 0; padding-bottom: 12px; justify-content: center; flex-shrink: 0; border-bottom: 3px solid #000; }
+        .tab-btn { background: none; border: none; font-size: 18px; font-weight: 900; color: #999; cursor: pointer; padding: 0; position: relative; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; }
+        .tab-btn:hover { color: #555; }
+        .tab-btn.active { color: #111; }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -15px; left: 0; width: 100%; height: 4px; background: #111; }
+        
+        /* 内容区域可滚动 */
+        .view-content { overflow-y: auto; flex: 1; min-height: 0; padding-bottom: 80px; }
+        #globalView, #groupView, #friendsView { display: flex; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
+        
+        /* 列表容器 */
+        .rank-list { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+        
+        /* 卡片样式 */
+        .rank-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 12px 16px; background: #fff; border-radius: 0; 
+            border: 1px solid #000; cursor: pointer; transition: all 0.2s ease;
+        }
+        .rank-item:active { transform: none; background: #fafafa; }
+        
+        /* 左侧信息 */
+        .rank-left { display: flex; align-items: center; gap: 15px; }
+        .rank-idx { width: 20px; font-weight: 800; font-style: italic; color: #ddd; text-align: center; font-size: 14px; }
+        .rank-item:nth-child(1) .rank-idx { color: #FFD700; font-size: 20px; } 
+        .rank-item:nth-child(2) .rank-idx { color: #C0C0C0; font-size: 18px; } 
+        .rank-item:nth-child(3) .rank-idx { color: #CD7F32; font-size: 18px; } 
+
+        .rank-avatar { width: 42px; height: 42px; border-radius: 0; object-fit: cover; background: #eee; border: 1px solid #000; filter: grayscale(100%); }
+        .user-info { display: flex; flex-direction: column; justify-content: center; }
+        .user-name { font-weight: 600; font-size: 14px; color: #111; }
+        .user-id-tag { font-size: 10px; color: #888; font-family: monospace; background: #f5f5f7; padding: 2px 6px; border-radius: 0; border: 1px solid #ddd; margin-top: 4px; width: fit-content; }
+        .rank-days { font-weight: 800; font-size: 18px; color: #111; }
+        .rank-days span { font-size: 10px; font-weight: normal; color: #888; }
+
+        /* Groups & Action */
+        .my-groups-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .group-card { background: #fff; padding: 15px; border-radius: 0; text-align: center; cursor: pointer; border: 1px solid #000; }
+        .group-card.active { background: #000; color: #fff; border-color: #000; }
+        .action-area { position: absolute; bottom: 20px; left: 20px; right: 20px; display: none; gap: 10px; }
+        .action-area .primary-btn { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="index.html" class="logo">Sticky</a>
+        <nav class="topnav">
+            <a href="index.html">Home</a>
+        </nav>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="rank-tabs">
+                <button class="tab-btn active" id="tabGlobal">Global</button>
+                <button class="tab-btn" id="tabGroup">Groups</button>
+                <button class="tab-btn" id="tabFriends">Friends</button> </div>
+
+            <div id="globalView">
+                <div class="view-content">
+                    <div id="globalList" class="rank-list">Loading...</div>
+                </div>
+            </div>
+
+            <div id="groupView" style="display: none;">
+                <div class="view-content">
+                    <div id="myGroupsList" class="my-groups-list"></div>
+                    <h3 id="currentGroupName" style="margin: 20px 0 10px 0; display:none; font-size:14px; color:#666;">Group Ranking</h3>
+                    <div id="groupRankList" class="rank-list"></div>
+                </div>
+            </div>
+
+            <div id="friendsView" style="display: none;">
+                <div class="view-content">
+                    <div id="friendsList" class="rank-list">Loading...</div>
+                </div>
+            </div>
+
+            <div class="action-area" id="groupActions">
+                <button class="primary-btn" id="joinBtn">Join Group</button>
+                <button class="primary-btn secondary-btn" id="createBtn">Create New</button>
+            </div>
+            
+            <div class="action-area" id="friendActions">
+                <button class="primary-btn" id="addFriendBtn">+ Add Friend</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import supabase from './js/supabaseClient.js';
+        import { getCurrentUser } from './js/auth.js';
+        import { showToast } from './js/utils.js';
+
+        let currentUser = null;
+
+        async function init() {
+            currentUser = await getCurrentUser();
+            if (!currentUser) return window.location.href = 'login.html';
+
+            // Tab 切换逻辑
+            const tabs = ['global', 'group', 'friends'];
+            tabs.forEach(t => {
+                document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).onclick = () => switchTab(t);
+            });
+
+            // 按钮事件
+            document.getElementById('joinBtn').onclick = handleJoinGroup;
+            document.getElementById('createBtn').onclick = handleCreateGroup;
+            document.getElementById('addFriendBtn').onclick = handleAddFriend;
+
+            loadGlobalRank();
+        }
+
+        function switchTab(mode) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+            
+            ['globalView', 'groupView', 'friendsView'].forEach(v => document.getElementById(v).style.display = 'none');
+            document.getElementById(mode + 'View').style.display = 'flex';
+
+            // 控制底部按钮显示
+            document.getElementById('groupActions').style.display = mode === 'group' ? 'flex' : 'none';
+            document.getElementById('friendActions').style.display = mode === 'friends' ? 'flex' : 'none';
+
+            if (mode === 'global') loadGlobalRank();
+            if (mode === 'group') loadMyGroups();
+            if (mode === 'friends') loadFriends();
+        }
+
+        // --- 1. Global Rank ---
+        async function loadGlobalRank() {
+            const list = document.getElementById('globalList');
+            const { data: profiles } = await supabase.from('profiles').select('*').order('total_check_ins', { ascending: false }).limit(50);
+            renderList(list, profiles);
+        }
+
+        // --- 2. Group Rank ---
+        async function loadMyGroups() {
+            const container = document.getElementById('myGroupsList');
+            const { data: memberships } = await supabase.from('group_members').select(`group_id, groups:group_id (*)`).eq('user_id', currentUser.id);
+            
+            container.innerHTML = '';
+            if (!memberships || memberships.length === 0) {
+                container.innerHTML = '<p class="empty-state">Keep Sticking</p>';
+                return;
+            }
+            memberships.forEach(m => {
+                const group = m.groups;
+                const div = document.createElement('div');
+                div.className = 'group-card';
+                div.innerHTML = `<b>${group.name}</b><br><small style="color:#888">${group.invite_code}</small>`;
+                div.onclick = () => loadGroupDetailRank(group);
+                container.appendChild(div);
+            });
+        }
+        async function loadGroupDetailRank(group) {
+            document.getElementById('currentGroupName').style.display = 'block';
+            document.getElementById('currentGroupName').innerText = `${group.name}`;
+            const { data: members } = await supabase.from('group_members').select('user_id').eq('group_id', group.id);
+            const userIds = members.map(m => m.user_id);
+            const { data: profiles } = await supabase.from('profiles').select('*').in('id', userIds).order('total_check_ins', { ascending: false });
+            renderList(document.getElementById('groupRankList'), profiles);
+        }
+
+        // --- 3. Friends Logic (新增) ---
+        async function loadFriends() {
+            const list = document.getElementById('friendsList');
+            list.innerHTML = '<p style="color:#aaa">Loading friends...</p>';
+
+            // 查询 friends 表 (我是 user_id)
+            const { data: friendsData } = await supabase
+                .from('friends')
+                .select(`friend_id`)
+                .eq('user_id', currentUser.id);
+
+            if (!friendsData || friendsData.length === 0) {
+                list.innerHTML = '<p class="empty-state">Keep Sticking</p>';
+                return;
+            }
+
+            const friendIds = friendsData.map(f => f.friend_id);
+            const { data: profiles } = await supabase.from('profiles').select('*').in('id', friendIds);
+            renderList(list, profiles);
+        }
+
+        async function handleAddFriend() {
+            const uidInput = prompt("Enter Friend's UID (6 chars or full ID):");
+            if (!uidInput) return;
+
+            // 1. 模糊搜索用户 ID
+            // 这是一个简单的做法：前端查不到部分ID，所以我们尝试用整个 profiles 搜索
+            // 为了严谨，我们假设用户输入的是 ID 的前几位。
+            // Supabase 可以用 ilike 搜索 text 类型 ID，但 UUID 是特殊类型。
+            // 这里我们做一个简化的逻辑：先拉取一个大致范围，或者要求输入相对完整的 ID。
+            // *但在真实项目中，推荐通过 Username 搜索，或者必须输入完整 ID*
+            
+            // 这里我们改用：通过 ID 前缀搜索 (Supabase UUID 比较难做前缀搜索)，
+            // 既然我们显示的 UID 是前6位，我们可以尝试列出所有用户比对 (用户量少时)
+            // 或者直接要求输入完整 UUID (不够友好)。
+            
+            // ** 最佳方案 **: 既然是 Demo，我们允许用户输入 6位 UID，我们在 Edge Function 处理，
+            // 或者：我们直接全表扫描匹配前缀 (只适合小用户量)。
+            // 为了不卡死，我们还是改为 -> **输入对方的邮箱前缀 (Username)** 可能更准，
+            // 但你要求是 ID。那我们在前端过滤一下。
+            
+            showToast("Searching...", "info");
+            
+            const { data: allUsers } = await supabase.from('profiles').select('id');
+            const target = allUsers.find(u => u.id.startsWith(uidInput));
+
+            if (!target) return showToast("User not found!", "error");
+            if (target.id === currentUser.id) return showToast("Cannot add yourself", "error");
+
+            // 2. 添加好友 (双向)
+            // 我加他
+            const { error: e1 } = await supabase.from('friends').insert([{ user_id: currentUser.id, friend_id: target.id }]);
+            // 他加我 (自动互粉)
+            const { error: e2 } = await supabase.from('friends').insert([{ user_id: target.id, friend_id: currentUser.id }]);
+
+            if (e1 && e1.code === '23505') {
+                showToast("Already friends!", "info");
+            } else if (e1) {
+                showToast("Error adding friend", "error");
+            } else {
+                showToast("Friend Added!", "success");
+                loadFriends();
+            }
+        }
+
+        // --- 通用渲染 ---
+        function renderList(container, profiles) {
+            if (!profiles || profiles.length === 0) {
+                container.innerHTML = '<p class="empty-state">Keep Sticking</p>';
+                return;
+            }
+            container.innerHTML = profiles.map((p, i) => {
+                let avatar = p.avatar_url || `https://ui-avatars.com/api/?name=${p.username}&background=random`;
+                if(p.avatar_url) avatar += '?t=' + Date.now();
+                return `
+                <div class="rank-item" onclick="window.location.href='profile.html?id=${p.id}'">
+                    <div class="rank-left">
+                        <div class="rank-idx">${i + 1}</div>
+                        <img src="${avatar}" class="rank-avatar">
+                        <div class="user-info">
+                            <span class="user-name">${p.username}</span>
+                            <span class="user-id-tag">UID: ${p.id.substring(0, 6)}</span>
+                        </div>
+                    </div>
+                    <div class="rank-days">${p.total_check_ins}<span>d</span></div>
+                </div>`;
+            }).join('');
+        }
+
+        // --- Group Actions ---
+        async function handleCreateGroup() { /* 同之前... */ 
+            const name = prompt("Name:"); if(!name) return;
+            const { data } = await supabase.from('groups').insert([{name, invite_code:Math.random().toString(36).substr(2,6).toUpperCase()}]).select().single();
+            await supabase.from('group_members').insert([{user_id:currentUser.id, group_id:data.id}]);
+            loadMyGroups();
+        }
+        async function handleJoinGroup() { /* 同之前... */ 
+            const code = prompt("Code:"); if(!code) return;
+            const { data } = await supabase.from('groups').select('id').eq('invite_code',code).single();
+            if(!data) return showToast("Invalid", "error");
+            await supabase.from('group_members').insert([{user_id:currentUser.id, group_id:data.id}]);
+            showToast("Joined!"); loadMyGroups();
+        }
+
+        init();
+    </script>
+</body>
+</html>

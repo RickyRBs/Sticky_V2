@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gallery</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <style>
+        body { overflow-y: auto; padding-top: 100px; padding-bottom: 40px; height: auto; }
+        .card { margin: 0 auto; }
+        h2 { font-size: 28px; font-weight: 900; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; overflow-y: auto; flex: 1; }
+        .photo-item { aspect-ratio: 1; background: #eee; border-radius: 0; overflow: hidden; position: relative; border: 2px solid #000; box-shadow: 3px 3px 0 rgba(0,0,0,1); transition: all 0.2s; }
+        .photo-item:hover { transform: translateY(-2px); box-shadow: 5px 5px 0 rgba(0,0,0,1); }
+        .photo-item img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-date { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.9); color: #fff; font-size: 11px; padding: 8px; text-align: center; font-weight: 700; letter-spacing: 0.5px; }
+        .photo-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; opacity: 0; transition: opacity 0.3s; }
+        .photo-item:hover .photo-actions { opacity: 1; }
+        .action-btn { width: 32px; height: 32px; background: #000; color: #fff; border: 2px solid #000; border-radius: 0; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; font-weight: 900; transition: all 0.2s; box-shadow: 2px 2px 0 rgba(0,0,0,1); }
+        .action-btn:hover { background: #fff; color: #000; border: 3px solid #000; transform: scale(1.1); box-shadow: 3px 3px 0 rgba(0,0,0,1); }
+        .action-btn:active { transform: scale(0.95); box-shadow: 1px 1px 0 rgba(0,0,0,1); }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="index.html" class="logo">Sticky</a>
+        <nav class="topnav">
+            <a href="index.html">Home</a>
+        </nav>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>My Gallery</h2>
+            <div id="galleryGrid" class="gallery-grid">Loading...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import supabase from './js/supabaseClient.js';
+        import { getCurrentUser } from './js/auth.js';
+
+        async function loadGallery() {
+            const user = await getCurrentUser();
+            if (!user) return window.location.href = 'login.html';
+
+            const { data: photos } = await supabase
+                .from('check_ins')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
+
+            const grid = document.getElementById('galleryGrid');
+            if (!photos || photos.length === 0) {
+                grid.innerHTML = '<p class="empty-state">Keep Sticking</p>';
+                return;
+            }
+
+            grid.innerHTML = photos.map(p => {
+                const date = new Date(p.created_at);
+                const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                return `
+                    <div class="photo-item" data-photo-id="${p.id}">
+                        <img src="${p.photo_url}" alt="checkin">
+                        <div class="photo-date">${dateStr} • ${timeStr}</div>
+                        <div class="photo-actions">
+                            <button class="action-btn download-btn" data-url="${p.photo_url}" data-date="${p.check_in_date}" title="Download">⬇</button>
+                            <button class="action-btn delete-btn" data-id="${p.id}" title="Delete">✕</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // 事件委托
+            grid.addEventListener('click', handleGridClick);
+        }
+        
+        // 事件委托处理点击
+        function handleGridClick(e) {
+            const downloadBtn = e.target.closest('.download-btn');
+            const deleteBtn = e.target.closest('.delete-btn');
+            
+            if (downloadBtn) {
+                const url = downloadBtn.dataset.url;
+                const date = downloadBtn.dataset.date;
+                downloadPhoto(url, date);
+            } else if (deleteBtn) {
+                const id = deleteBtn.dataset.id;
+                deletePhoto(id);
+            }
+        }
+
+        // 下载照片
+        function downloadPhoto(url, date) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sticky-${date}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // 删除照片
+        async function deletePhoto(photoId) {
+            console.log('Deleting photo with ID:', photoId);
+            if (!confirm('Delete this photo?')) return;
+            
+            const user = await getCurrentUser();
+            console.log('Current user:', user?.id);
+            if (!user) {
+                alert('Please login first.');
+                return;
+            }
+            
+            try {
+                // 1. 删除 check_in 记录
+                const { data, error } = await supabase
+                    .from('check_ins')
+                    .delete()
+                    .eq('id', photoId)
+                    .eq('user_id', user.id)
+                    .select();
+                
+                console.log('Delete result:', { data, error });
+                
+                if (error) {
+                    console.error('Delete error:', error);
+                    alert('Failed to delete photo: ' + error.message);
+                    return;
+                }
+                
+                // 2. 减少签到计数
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('total_check_ins')
+                    .eq('id', user.id)
+                    .single();
+                
+                if (profile && profile.total_check_ins > 0) {
+                    await supabase
+                        .from('profiles')
+                        .update({ total_check_ins: profile.total_check_ins - 1 })
+                        .eq('id', user.id);
+                }
+                
+                alert('Photo deleted successfully!');
+                loadGallery(); // 重新加载
+            } catch (err) {
+                console.error('Catch error:', err);
+                alert('Error: ' + err.message);
+            }
+        }
+
+        loadGallery();
+    </script>
+</body>
+</html>
