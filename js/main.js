@@ -31,7 +31,7 @@ async function init() {
         // 未登录状态
         if(authBtn) authBtn.innerText = 'Login';
         const gameContainer = document.getElementById('gameContainer');
-        if(gameContainer) gameContainer.innerHTML = '<p>Please Login to Play.</p>';
+        if(gameContainer) gameContainer.innerHTML = '<p class="empty-state">Login to Keep Sticky</p>';
     }
 }
 
