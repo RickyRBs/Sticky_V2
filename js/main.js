@@ -31,7 +31,14 @@ async function init() {
         // 未登录状态
         if(authBtn) authBtn.innerText = 'Login';
         const gameContainer = document.getElementById('gameContainer');
-        if(gameContainer) gameContainer.innerHTML = '<p class="empty-state">Login to Keep Sticky</p>';
+        if(gameContainer) {
+            gameContainer.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+                    <p class="empty-state">Login to Keep Sticky</p>
+                    <a href="login.html" style="background: #000; color: #fff; padding: 12px 32px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 14px; transition: transform 0.2s ease; display: inline-block;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">Login / Signup</a>
+                </div>
+            `;
+        }
     }
 }
 
