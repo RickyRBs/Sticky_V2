@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <style>
+        body { overflow-y: auto; padding-top: 100px; padding-bottom: 40px; height: auto; }
+        /* Override card centering so content starts at top */
+        .card { margin: 0 auto; justify-content: flex-start; }
+
+        /* Tabs */
+        .rank-tabs { display: flex; gap: 20px; margin: 0 0 24px 0; padding-bottom: 12px; justify-content: center; flex-shrink: 0; border-bottom: 3px solid #000; }
+        .tab-btn { background: none; border: none; font-size: 18px; font-weight: 900; color: #999; cursor: pointer; padding: 0; position: relative; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; }
+        .tab-btn:hover { color: #555; }
+        .tab-btn.active { color: #111; }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -15px; left: 0; width: 100%; height: 4px; background: #111; }
+
+        /* Rank list */
+        .rank-list { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+        .rank-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #fff; border: 1px solid #000; }
+        .rank-left { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .rank-avatar { width: 40px; height: 40px; object-fit: cover; border: 1px solid #000; filter: grayscale(100%); flex-shrink: 0; }
+        .user-info { display: flex; flex-direction: column; }
+        .user-name { font-weight: 600; font-size: 14px; }
+        .user-id-tag { font-size: 10px; color: #888; font-family: monospace; background: #f5f5f7; padding: 2px 6px; border: 1px solid #ddd; margin-top: 3px; width: fit-content; }
+        .rank-days { font-weight: 800; font-size: 16px; flex-shrink: 0; }
+        .rank-days span { font-size: 10px; font-weight: normal; color: #888; }
+
+        /* Big Stick All button */
+        #stickAllBtn {
+            width: 100%; padding: 18px; font-size: 14px; font-weight: 800;
+            letter-spacing: 2px; margin-bottom: 20px;
+        }
+        #stickAllBtn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+        /* Group cards */
+        .my-groups-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; min-height: 10px; }
+        .group-card { background: #fff; padding: 14px 16px; border: 1px solid #000; display: flex; justify-content: space-between; align-items: center; }
+        .group-card-info { display: flex; flex-direction: column; text-align: left; }
+        .group-card-name { font-weight: 700; font-size: 14px; }
+        .group-card-meta { font-family: monospace; font-size: 11px; color: #888; margin-top: 3px; }
+        .stickied-badge { font-size: 10px; font-weight: 800; color: #2a7; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Section label */
+        .section-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #666; margin: 0 0 10px 0; }
+
+        /* Danger button (leave / remove) */
+        .danger-btn { background: #fff; color: #000; border: 2px solid #000; padding: 6px 12px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+        .danger-btn:hover { transform: translateY(-1px); box-shadow: 2px 2px 0 rgba(0,0,0,0.8); }
+        .danger-btn:active { transform: translateY(0); box-shadow: none; }
+        .danger-btn.confirm { background: #c00; color: #fff; border-color: #c00; }
+        .danger-btn.confirm:hover { background: #fff; color: #c00; }
+
+        /* Inline input */
+        .inline-input { padding: 8px 10px; border: 2px solid #000; border-radius: 0; font-family: inherit; font-size: 13px; outline: none; background: #fff; min-width: 0; box-sizing: border-box; }
+        .inline-input:focus { background: #fafafa; box-shadow: none; }
+
+        /* Forms */
+        .btn-row { display: flex; gap: 10px; }
+        .form-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+        .divider { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="index.html" class="logo">Sticky</a>
+        <nav class="topnav">
+            <a href="dlc.html">DLC</a>
+            <a href="index.html">Home</a>
+            <a href="leaderboard.html">Rank</a>
+            <a href="social.html">Social</a>
+            <a href="gallery.html">Gallery</a>
+            <a href="profile.html">Me</a>
+            <a id="authBtn" href="login.html">Login</a>
+        </nav>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="rank-tabs">
+                <button class="tab-btn active" id="tabGroups">Groups</button>
+                <button class="tab-btn" id="tabFriends">Friends</button>
+            </div>
+
+            <!-- ====== Groups View ====== -->
+            <div id="groupsView">
+                <!-- Big Stick All button -->
+                <button class="primary-btn" id="stickAllBtn" disabled>Check In First</button>
+
+                <!-- My groups list -->
+                <div id="myGroupsList" class="my-groups-list"></div>
+
+                <hr class="divider">
+
+                <!-- Join / Create inline forms -->
+                <div id="groupBtnRow" class="btn-row">
+                    <button class="primary-btn" id="joinBtn" style="flex:1;">Join Group</button>
+                    <button class="primary-btn secondary-btn" id="createBtn" style="flex:1;">Create New</button>
+                </div>
+                <div id="joinGroupForm" style="display:none;">
+                    <div class="form-row">
+                        <input type="text" id="joinCodeInput" class="inline-input" placeholder="Invite code..." maxlength="8" style="flex:1; text-transform:uppercase;">
+                        <button class="primary-btn" id="joinSubmitBtn">Join</button>
+                        <button class="primary-btn secondary-btn" id="joinCancelBtn">Cancel</button>
+                    </div>
+                </div>
+                <div id="createGroupForm" style="display:none;">
+                    <div class="form-row">
+                        <input type="text" id="createNameInput" class="inline-input" placeholder="Group name..." style="flex:1;">
+                        <button class="primary-btn" id="createSubmitBtn">Create</button>
+                        <button class="primary-btn secondary-btn" id="createCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== Friends View ====== -->
+            <div id="friendsView" style="display: none;">
+                <!-- Friend Requests -->
+                <div id="friendRequestsSection" style="display: none; margin-bottom: 20px;">
+                    <p class="section-label">Friend Requests</p>
+                    <div id="friendRequestsList" class="rank-list"></div>
+                    <hr class="divider">
+                </div>
+
+                <!-- Friends list -->
+                <p class="section-label">My Friends</p>
+                <div id="friendsList" class="rank-list" style="margin-bottom: 16px;">Loading...</div>
+
+                <!-- Add friend form -->
+                <div id="friendBtnRow">
+                    <button class="primary-btn" id="addFriendBtn" style="width:100%;">+ Add Friend</button>
+                </div>
+                <div id="addFriendForm" style="display:none;">
+                    <div class="form-row">
+                        <input type="text" id="friendUIDInput" class="inline-input" placeholder="Enter UID (first 6+ chars)..." style="flex:1;">
+                        <button class="primary-btn" id="addFriendSubmitBtn">Send</button>
+                        <button class="primary-btn secondary-btn" id="addFriendCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import supabase from './js/supabaseClient.js';
+        import { getCurrentUser } from './js/auth.js';
+        import { showToast, getTodayStr } from './js/utils.js';
+
+        let currentUser = null;
+
+        async function init() {
+            currentUser = await getCurrentUser();
+            if (!currentUser) return window.location.href = 'login.html';
+
+            // Auth button
+            const authBtn = document.getElementById('authBtn');
+            authBtn.textContent = 'Logout';
+            authBtn.href = '#';
+            authBtn.onclick = async (e) => {
+                e.preventDefault();
+                await supabase.auth.signOut();
+                window.location.href = 'login.html';
+            };
+
+            // Tab switching
+            document.getElementById('tabGroups').onclick = () => switchTab('groups');
+            document.getElementById('tabFriends').onclick = () => switchTab('friends');
+
+            // Group form buttons
+            document.getElementById('joinBtn').onclick = () => { showGroupForm('join'); document.getElementById('joinCodeInput').focus(); };
+            document.getElementById('createBtn').onclick = () => { showGroupForm('create'); document.getElementById('createNameInput').focus(); };
+            document.getElementById('joinSubmitBtn').onclick = handleJoinGroup;
+            document.getElementById('joinCancelBtn').onclick = hideGroupForms;
+            document.getElementById('createSubmitBtn').onclick = handleCreateGroup;
+            document.getElementById('createCancelBtn').onclick = hideGroupForms;
+            document.getElementById('joinCodeInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleJoinGroup(); });
+            document.getElementById('createNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleCreateGroup(); });
+
+            // Friend form buttons
+            document.getElementById('addFriendBtn').onclick = () => { showFriendForm(true); document.getElementById('friendUIDInput').focus(); };
+            document.getElementById('addFriendSubmitBtn').onclick = handleAddFriend;
+            document.getElementById('addFriendCancelBtn').onclick = () => showFriendForm(false);
+            document.getElementById('friendUIDInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleAddFriend(); });
+
+            // Stick All button
+            document.getElementById('stickAllBtn').onclick = handleStickAll;
+
+            loadGroups();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+            document.getElementById('groupsView').style.display = tab === 'groups' ? 'block' : 'none';
+            document.getElementById('friendsView').style.display = tab === 'friends' ? 'block' : 'none';
+            hideGroupForms();
+            showFriendForm(false);
+            if (tab === 'groups') loadGroups();
+            if (tab === 'friends') loadFriends();
+        }
+
+        // --- Inline form helpers ---
+        function showGroupForm(type) {
+            document.getElementById('groupBtnRow').style.display = 'none';
+            document.getElementById('joinGroupForm').style.display = type === 'join' ? 'block' : 'none';
+            document.getElementById('createGroupForm').style.display = type === 'create' ? 'block' : 'none';
+        }
+        function hideGroupForms() {
+            document.getElementById('groupBtnRow').style.display = 'flex';
+            document.getElementById('joinGroupForm').style.display = 'none';
+            document.getElementById('createGroupForm').style.display = 'none';
+            document.getElementById('joinCodeInput').value = '';
+            document.getElementById('createNameInput').value = '';
+        }
+        function showFriendForm(show) {
+            document.getElementById('friendBtnRow').style.display = show ? 'none' : 'block';
+            document.getElementById('addFriendForm').style.display = show ? 'block' : 'none';
+            if (!show) document.getElementById('friendUIDInput').value = '';
+        }
+
+        // ========================
+        //  GROUPS
+        // ========================
+        async function loadGroups() {
+            const container = document.getElementById('myGroupsList');
+            const stickBtn = document.getElementById('stickAllBtn');
+            container.innerHTML = '<p style="color:#aaa;text-align:center;padding:16px 0;">Loading...</p>';
+
+            const today = getTodayStr();
+
+            // 1. Check personal check-in
+            const { data: myCheckIn } = await supabase
+                .from('check_ins')
+                .select('id')
+                .eq('user_id', currentUser.id)
+                .eq('check_in_date', today)
+                .maybeSingle();
+            const hasPersonalCI = !!myCheckIn;
+
+            // 2. Get memberships with group details
+            const { data: memberships } = await supabase
+                .from('group_members')
+                .select('group_id, groups:group_id(id, name, invite_code, total_group_check_ins)')
+                .eq('user_id', currentUser.id);
+
+            container.innerHTML = '';
+
+            if (!memberships || memberships.length === 0) {
+                container.innerHTML = '<p class="empty-state" style="padding:16px 0;">No groups yet. Join or create one below!</p>';
+                stickBtn.disabled = true;
+                stickBtn.textContent = hasPersonalCI ? 'No Groups' : 'Check In First';
+                return;
+            }
+
+            // 3. Get today's group check-ins in one query
+            const groupIds = memberships.map(m => m.group_id);
+            const { data: todayCIs } = await supabase
+                .from('group_check_ins')
+                .select('group_id')
+                .in('group_id', groupIds)
+                .eq('check_in_date', today);
+            const checkedGroups = new Set(todayCIs?.map(g => g.group_id) || []);
+
+            const allStickied = memberships.every(m => checkedGroups.has(m.group_id));
+
+            // 4. Update Stick All button
+            if (!hasPersonalCI) {
+                stickBtn.disabled = true;
+                stickBtn.textContent = 'Check In First';
+            } else if (allStickied) {
+                stickBtn.disabled = true;
+                stickBtn.textContent = 'All Stickied Today';
+            } else {
+                stickBtn.disabled = false;
+                stickBtn.textContent = 'Stick All Groups';
+            }
+
+            // 5. Render group cards
+            memberships.forEach(m => {
+                const group = m.groups;
+                if (!group) return; // safety check
+                const isStickied = checkedGroups.has(group.id);
+                const div = document.createElement('div');
+                div.className = 'group-card';
+                div.innerHTML = `
+                    <div class="group-card-info">
+                        <span class="group-card-name">${group.name}</span>
+                        <span class="group-card-meta">
+                            ${group.invite_code}&nbsp;·&nbsp;${group.total_group_check_ins || 0}d
+                            ${isStickied ? '&nbsp;<span class="stickied-badge">Stickied</span>' : ''}
+                        </span>
+                    </div>
+                    <button class="danger-btn leave-btn" data-group-id="${group.id}" data-group-name="${group.name}">Leave</button>
+                `;
+                container.appendChild(div);
+            });
+
+            // 6. Bind Leave buttons (double-tap Sure? confirmation)
+            container.querySelectorAll('.leave-btn').forEach(btn => {
+                let confirmTimer = null;
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (btn.classList.contains('confirm')) {
+                        clearTimeout(confirmTimer);
+                        btn.classList.remove('confirm');
+                        btn.textContent = 'Leaving...';
+                        btn.disabled = true;
+                        await leaveGroup(btn.dataset.groupId, btn.dataset.groupName);
+                    } else {
+                        // Reset any other confirm buttons first
+                        container.querySelectorAll('.leave-btn.confirm').forEach(b => {
+                            b.classList.remove('confirm');
+                            b.textContent = 'Leave';
+                        });
+                        btn.textContent = 'Sure?';
+                        btn.classList.add('confirm');
+                        confirmTimer = setTimeout(() => {
+                            btn.classList.remove('confirm');
+                            btn.textContent = 'Leave';
+                        }, 3000);
+                    }
+                });
+            });
+        }
+
+        async function leaveGroup(groupId, groupName) {
+            const { error } = await supabase
+                .from('group_members')
+                .delete()
+                .eq('user_id', currentUser.id)
+                .eq('group_id', groupId);
+
+            if (error) {
+                console.error(error);
+                showToast('Error leaving group', 'error');
+            } else {
+                showToast(`Left "${groupName}"`, 'success');
+                loadGroups();
+            }
+        }
+
+        // Directly perform group check-ins (inlined to avoid import issues)
+        async function performGroupCheckIns(today) {
+            // Get user's memberships
+            const { data: memberships } = await supabase
+                .from('group_members')
+                .select('group_id')
+                .eq('user_id', currentUser.id);
+
+            if (!memberships || memberships.length === 0) return 0;
+
+            const groupIds = memberships.map(m => m.group_id);
+
+            // Get all members of those groups
+            const { data: allGroupMembers } = await supabase
+                .from('group_members')
+                .select('group_id, user_id')
+                .in('group_id', groupIds);
+
+            if (!allGroupMembers) return 0;
+
+            // Group members by group_id
+            const membersByGroup = new Map();
+            allGroupMembers.forEach(m => {
+                if (!membersByGroup.has(m.group_id)) membersByGroup.set(m.group_id, []);
+                membersByGroup.get(m.group_id).push(m.user_id);
+            });
+
+            // Get today's check-ins for all involved members
+            const allMemberIds = [...new Set(allGroupMembers.map(m => m.user_id))];
+            const { data: todayCheckIns } = await supabase
+                .from('check_ins')
+                .select('user_id')
+                .in('user_id', allMemberIds)
+                .eq('check_in_date', today);
+            const checkedInUsers = new Set(todayCheckIns?.map(c => c.user_id) || []);
+
+            // Get already-recorded group check-ins today
+            const { data: existingGroupCIs } = await supabase
+                .from('group_check_ins')
+                .select('group_id')
+                .in('group_id', groupIds)
+                .eq('check_in_date', today);
+            const alreadyRecorded = new Set(existingGroupCIs?.map(g => g.group_id) || []);
+
+            let newlyStickied = 0;
+            let hadPermissionError = false;
+
+            for (const groupId of groupIds) {
+                if (alreadyRecorded.has(groupId)) continue; // already done today
+
+                const memberIds = membersByGroup.get(groupId) || [];
+                if (memberIds.length === 0) continue;
+
+                const allCheckedIn = memberIds.every(id => checkedInUsers.has(id));
+                if (!allCheckedIn) continue;
+
+                // Insert group check-in
+                const { error: insertErr } = await supabase
+                    .from('group_check_ins')
+                    .insert([{ group_id: groupId, check_in_date: today }]);
+
+                if (insertErr) {
+                    console.error('group_check_ins insert error:', insertErr);
+                    if (insertErr.code === '42501' || insertErr.message?.includes('permission')) {
+                        hadPermissionError = true;
+                    }
+                    continue;
+                }
+
+                // Increment group total (best effort — may fail if RLS blocks update)
+                const { data: grp } = await supabase
+                    .from('groups')
+                    .select('total_group_check_ins')
+                    .eq('id', groupId)
+                    .single();
+
+                await supabase
+                    .from('groups')
+                    .update({ total_group_check_ins: (grp?.total_group_check_ins || 0) + 1 })
+                    .eq('id', groupId);
+
+                newlyStickied++;
+            }
+
+            if (hadPermissionError) {
+                showToast('Permission error — check Supabase RLS', 'error');
+            }
+
+            return newlyStickied;
+        }
+
+        async function handleStickAll() {
+            const btn = document.getElementById('stickAllBtn');
+            btn.disabled = true;
+            btn.textContent = 'Sticking...';
+
+            const today = getTodayStr();
+
+            // Verify personal check-in is still valid
+            const { data: myCI } = await supabase
+                .from('check_ins')
+                .select('id')
+                .eq('user_id', currentUser.id)
+                .eq('check_in_date', today)
+                .maybeSingle();
+
+            if (!myCI) {
+                showToast('Check in yourself first!', 'error');
+                loadGroups();
+                return;
+            }
+
+            const newlyStickied = await performGroupCheckIns(today);
+
+            if (newlyStickied > 0) {
+                showToast(`${newlyStickied} group${newlyStickied > 1 ? 's' : ''} stickied!`, 'success');
+            } else {
+                // Check if already all done or still waiting
+                const { data: memberships } = await supabase
+                    .from('group_members').select('group_id').eq('user_id', currentUser.id);
+                const gids = (memberships || []).map(m => m.group_id);
+                const { data: doneCIs } = await supabase
+                    .from('group_check_ins').select('group_id').in('group_id', gids).eq('check_in_date', today);
+                const doneSet = new Set(doneCIs?.map(g => g.group_id) || []);
+                const allDone = gids.every(id => doneSet.has(id));
+
+                if (allDone) {
+                    showToast('All groups already stickied today!', 'info');
+                } else {
+                    showToast('Waiting for other members to check in', 'info');
+                }
+            }
+
+            loadGroups();
+        }
+
+        async function handleCreateGroup() {
+            const name = document.getElementById('createNameInput').value.trim();
+            if (!name) { showToast('Enter a group name', 'error'); return; }
+            hideGroupForms();
+            showToast('Creating...', 'info');
+
+            const { data: group, error } = await supabase.from('groups').insert([{
+                name,
+                invite_code: Math.random().toString(36).substr(2, 6).toUpperCase(),
+                total_group_check_ins: 0
+            }]).select().single();
+
+            if (error) { console.error(error); showToast('Error creating group', 'error'); return; }
+
+            await supabase.from('group_members').insert([{ user_id: currentUser.id, group_id: group.id }]);
+
+            // Try to stick immediately if already checked in
+            const today = getTodayStr();
+            await performGroupCheckIns(today);
+
+            showToast(`Created! Code: ${group.invite_code}`, 'success');
+            loadGroups();
+        }
+
+        async function handleJoinGroup() {
+            const code = document.getElementById('joinCodeInput').value.trim();
+            if (!code) { showToast('Enter an invite code', 'error'); return; }
+            hideGroupForms();
+            showToast('Searching...', 'info');
+
+            // Fetch group with current total so we can decrement if needed
+            const { data: group, error } = await supabase
+                .from('groups')
+                .select('id, name, total_group_check_ins')
+                .eq('invite_code', code.toUpperCase())
+                .single();
+            if (error || !group) { showToast('Invalid code', 'error'); return; }
+
+            const { data: existing } = await supabase
+                .from('group_members').select('id')
+                .eq('user_id', currentUser.id).eq('group_id', group.id).maybeSingle();
+            if (existing) { showToast('Already a member!', 'info'); return; }
+
+            const { error: joinErr } = await supabase
+                .from('group_members').insert([{ user_id: currentUser.id, group_id: group.id }]);
+            if (joinErr) { console.error(joinErr); showToast('Error joining group', 'error'); return; }
+
+            const today = getTodayStr();
+
+            // Check if this group already has a check-in recorded for today
+            const { data: todayGroupCI } = await supabase
+                .from('group_check_ins')
+                .select('id')
+                .eq('group_id', group.id)
+                .eq('check_in_date', today)
+                .maybeSingle();
+
+            if (todayGroupCI) {
+                // Group was already stickied today — check if the new member has personally checked in
+                const { data: myCI } = await supabase
+                    .from('check_ins')
+                    .select('id')
+                    .eq('user_id', currentUser.id)
+                    .eq('check_in_date', today)
+                    .maybeSingle();
+
+                if (!myCI) {
+                    // New member hasn't checked in yet → invalidate today's group check-in
+                    await supabase.from('group_check_ins').delete().eq('id', todayGroupCI.id);
+                    const currentTotal = group.total_group_check_ins || 0;
+                    if (currentTotal > 0) {
+                        await supabase.from('groups')
+                            .update({ total_group_check_ins: currentTotal - 1 })
+                            .eq('id', group.id);
+                    }
+                    showToast(`Joined "${group.name}"! Check in to restore group streak`, 'info');
+                } else {
+                    // New member already checked in today → group check-in stays valid
+                    showToast(`Joined "${group.name}"!`, 'success');
+                }
+            } else {
+                // No group check-in yet — try to trigger one
+                // (handles case where new member already checked in and now all members have)
+                await performGroupCheckIns(today);
+                showToast(`Joined "${group.name}"!`, 'success');
+            }
+
+            loadGroups();
+        }
+
+        // ========================
+        //  FRIENDS
+        // ========================
+        async function loadFriends() {
+            const list = document.getElementById('friendsList');
+            list.innerHTML = '<p style="color:#aaa;">Loading...</p>';
+
+            await loadFriendRequests();
+
+            const { data: myFriends } = await supabase
+                .from('friends')
+                .select('friend_id')
+                .eq('user_id', currentUser.id);
+
+            if (!myFriends || myFriends.length === 0) {
+                list.innerHTML = '<p class="empty-state" style="padding:16px 0;">No friends yet</p>';
+                return;
+            }
+
+            const friendIds = myFriends.map(f => f.friend_id);
+            const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url, total_check_ins')
+                .in('id', friendIds);
+
+            if (!profiles || profiles.length === 0) {
+                list.innerHTML = '<p class="empty-state">No friends found</p>';
+                return;
+            }
+
+            list.innerHTML = '';
+            profiles
+                .sort((a, b) => (b.total_check_ins || 0) - (a.total_check_ins || 0))
+                .forEach(p => {
+                    let avatar = p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username)}&background=random`;
+                    if (p.avatar_url) avatar += '?t=' + Date.now();
+
+                    const item = document.createElement('div');
+                    item.className = 'rank-item';
+                    item.innerHTML = `
+                        <div class="rank-left" onclick="window.location.href='profile.html?id=${p.id}'">
+                            <img src="${avatar}" class="rank-avatar">
+                            <div class="user-info">
+                                <span class="user-name">${p.username}</span>
+                                <span class="user-id-tag">UID: ${p.id.substring(0, 6)}</span>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <span class="rank-days">${p.total_check_ins || 0}<span>d</span></span>
+                            <button class="danger-btn remove-btn" data-friend-id="${p.id}" data-friend-name="${p.username}">Remove</button>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+
+            // Bind Remove buttons (double-tap Sure? confirmation)
+            list.querySelectorAll('.remove-btn').forEach(btn => {
+                let confirmTimer = null;
+                btn.addEventListener('click', async () => {
+                    if (btn.classList.contains('confirm')) {
+                        clearTimeout(confirmTimer);
+                        btn.classList.remove('confirm');
+                        btn.textContent = 'Removing...';
+                        btn.disabled = true;
+                        await removeFriend(btn.dataset.friendId, btn.dataset.friendName);
+                    } else {
+                        list.querySelectorAll('.remove-btn.confirm').forEach(b => {
+                            b.classList.remove('confirm');
+                            b.textContent = 'Remove';
+                        });
+                        btn.textContent = 'Sure?';
+                        btn.classList.add('confirm');
+                        confirmTimer = setTimeout(() => {
+                            btn.classList.remove('confirm');
+                            btn.textContent = 'Remove';
+                        }, 3000);
+                    }
+                });
+            });
+        }
+
+        async function removeFriend(friendId, friendName) {
+            // Delete both directions of friendship
+            const [r1, r2] = await Promise.all([
+                supabase.from('friends').delete().eq('user_id', currentUser.id).eq('friend_id', friendId),
+                supabase.from('friends').delete().eq('user_id', friendId).eq('friend_id', currentUser.id)
+            ]);
+            if (r1.error || r2.error) {
+                showToast('Error removing friend', 'error');
+            } else {
+                showToast(`Removed ${friendName}`, 'success');
+                loadFriends();
+            }
+        }
+
+        async function loadFriendRequests() {
+            const section = document.getElementById('friendRequestsSection');
+            const list = document.getElementById('friendRequestsList');
+
+            const { data: requests } = await supabase
+                .from('friend_requests')
+                .select('id, sender_id, profiles:sender_id(username)')
+                .eq('receiver_id', currentUser.id)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+
+            if (!requests || requests.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = requests.map(r => `
+                <div class="rank-item">
+                    <div class="rank-left">
+                        <div class="user-info">
+                            <span class="user-name">${r.profiles?.username || 'User'}</span>
+                            <span class="user-id-tag">UID: ${r.sender_id.substring(0, 6)}</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="primary-btn" style="padding:6px 12px;font-size:11px;" onclick="acceptRequest('${r.id}', '${r.sender_id}')">Accept</button>
+                        <button class="primary-btn secondary-btn" style="padding:6px 12px;font-size:11px;" onclick="declineRequest('${r.id}')">Decline</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.acceptRequest = async function(requestId, senderId) {
+            showToast('Accepting...', 'info');
+            await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
+            const { error } = await supabase.from('friends').insert([
+                { user_id: currentUser.id, friend_id: senderId },
+                { user_id: senderId, friend_id: currentUser.id }
+            ]);
+            if (error) { showToast('Error adding friend', 'error'); return; }
+            showToast('Friend added!', 'success');
+            loadFriends();
+        };
+
+        window.declineRequest = async function(requestId) {
+            await supabase.from('friend_requests').update({ status: 'rejected' }).eq('id', requestId);
+            showToast('Request declined', 'info');
+            loadFriends();
+        };
+
+        async function handleAddFriend() {
+            const input = document.getElementById('friendUIDInput');
+            const uid = input.value.trim();
+            if (!uid) { showToast('Enter a UID', 'error'); return; }
+            if (uid.length < 4) { showToast('UID too short (min 4 chars)', 'error'); return; }
+            showFriendForm(false);
+            showToast('Searching...', 'info');
+
+            const { data: allUsers } = await supabase.from('profiles').select('id, username');
+            const target = allUsers?.find(u => u.id.toLowerCase().startsWith(uid.toLowerCase()));
+            if (!target) return showToast('User not found', 'error');
+            if (target.id === currentUser.id) return showToast('Cannot add yourself', 'error');
+
+            const { data: existingFriend } = await supabase
+                .from('friends').select('id')
+                .eq('user_id', currentUser.id).eq('friend_id', target.id).maybeSingle();
+            if (existingFriend) return showToast('Already friends!', 'info');
+
+            const { data: existingReq } = await supabase
+                .from('friend_requests').select('id, status')
+                .eq('sender_id', currentUser.id).eq('receiver_id', target.id).maybeSingle();
+            if (existingReq?.status === 'pending') return showToast('Request already sent!', 'info');
+
+            const { error } = await supabase.from('friend_requests').insert([{
+                sender_id: currentUser.id,
+                receiver_id: target.id,
+                status: 'pending'
+            }]);
+
+            if (error && error.code === '23505') {
+                showToast('Request already exists!', 'info');
+            } else if (error) {
+                console.error(error);
+                showToast('Error sending request', 'error');
+            } else {
+                showToast(`Request sent to ${target.username}!`, 'success');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

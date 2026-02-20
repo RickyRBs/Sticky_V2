@@ -1,6 +1,6 @@
 import supabase from './supabaseClient.js';
 import { getCurrentUser, logout } from './auth.js';
-import { showToast } from './utils.js';
+import { showToast, getTodayStr } from './utils.js';
 import { CalendarRender } from './CalendarRender.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -346,8 +346,10 @@ function setupFriendCheckIn(currentUserId, targetUserId, targetUsername) {
     const btn = document.getElementById('friendCheckInBtn');
     btn.style.display = 'block';
     
-    // 首先检查是否是好友关系
-    checkFriendship(currentUserId, targetUserId).then(isFriend => {
+    // 初始化按钮状态
+    (async () => {
+        // 1. 检查好友关系
+        const isFriend = await checkFriendship(currentUserId, targetUserId);
         if (!isFriend) {
             btn.innerText = 'Not Friends';
             btn.disabled = true;
@@ -355,39 +357,67 @@ function setupFriendCheckIn(currentUserId, targetUserId, targetUsername) {
             btn.style.cursor = 'not-allowed';
             return;
         }
-        
-        // 检查今天是否已经 check-in 过
-        checkTodayCheckIn(currentUserId, targetUserId).then(alreadyChecked => {
-            if (alreadyChecked) {
-                btn.innerText = 'Stickied Today';
-                btn.disabled = true;
-                btn.style.opacity = '0.5';
-                btn.style.cursor = 'not-allowed';
-            }
-        });
-    });
+
+        // 2. 检查今天是否已经 sticky 过
+        const alreadyChecked = await checkTodayCheckIn(currentUserId, targetUserId);
+        if (alreadyChecked) {
+            btn.innerText = 'Stickied Today';
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            return;
+        }
+
+        // 3. 如果今天还没有个人签到，更新按钮文案提示
+        const today = getTodayStr();
+        const { data: myCheckIn } = await supabase
+            .from('check_ins')
+            .select('id')
+            .eq('user_id', currentUserId)
+            .eq('check_in_date', today)
+            .maybeSingle();
+        if (!myCheckIn) {
+            btn.innerText = 'Check In First';
+            btn.style.opacity = '0.6';
+            // 不禁用：让用户点击后看到提示而不是按钮灰掉
+        }
+    })();
     
     btn.onclick = async () => {
         if (btn.disabled) return;
-        
+
+        // 前置要求：自己今天必须先完成个人签到
+        const today = getTodayStr();
+        const { data: myCheckIn } = await supabase
+            .from('check_ins')
+            .select('id')
+            .eq('user_id', currentUserId)
+            .eq('check_in_date', today)
+            .maybeSingle();
+
+        if (!myCheckIn) {
+            showToast('Check in yourself first!', 'error');
+            return;
+        }
+
         // 检查好友关系
         const isFriend = await checkFriendship(currentUserId, targetUserId);
         if (!isFriend) {
             showToast('You must be friends to sticky!', 'error');
             return;
         }
-        
+
         // 获取目标用户的问题
         const { data: questions } = await supabase
             .from('user_questions')
             .select('*')
             .eq('user_id', targetUserId);
-        
+
         if (!questions || questions.length < 3) {
             showToast(`${targetUsername} hasn't set up security questions yet (need 3+)`, 'error');
             return;
         }
-        
+
         // 随机选择一个问题
         await askSecurityQuestion(questions, currentUserId, targetUserId, targetUsername, btn);
     };
@@ -404,58 +434,76 @@ async function checkFriendship(userId1, userId2) {
     return !!data;
 }
 
-async function askSecurityQuestion(questions, currentUserId, targetUserId, targetUsername, btn) {
-    // 随机选择一个问题
-    let currentQuestionIndex = Math.floor(Math.random() * questions.length);
-    let currentQuestion = questions[currentQuestionIndex];
-    
-    const answerInput = currentQuestion.answer_type === 'yesno' 
-        ? confirm(`Security Question:\n\n${currentQuestion.question}\n\n(OK = Yes, Cancel = No)`) ? 'Y' : 'N'
-        : prompt(`Security Question:\n\n${currentQuestion.question}\n\n(Enter a number, or type "NEXT" for another question)`);
-    
-    if (answerInput === null) {
-        return; // 用户取消
-    }
-    
-    // 如果输入NEXT，换一个问题
-    if (answerInput.toUpperCase() === 'NEXT' && currentQuestion.answer_type === 'number') {
-        const availableQuestions = questions.filter((q, i) => i !== currentQuestionIndex);
-        if (availableQuestions.length > 0) {
-            return askSecurityQuestion(availableQuestions, currentUserId, targetUserId, targetUsername, btn);
-        } else {
-            showToast('No more questions available', 'error');
-            return;
+function askSecurityQuestion(questions, currentUserId, targetUserId, targetUsername, btn) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('securityQuestionModal');
+        let remainingQuestions = [...questions];
+        let currentQuestion = null;
+
+        function closeModal() {
+            modal.style.display = 'none';
         }
-    }
-    
-    // 验证答案
-    const isCorrect = answerInput.toString().trim() === currentQuestion.answer.toString().trim();
-    
-    if (!isCorrect) {
-        showToast('Wrong answer! Try again.', 'error');
-        return;
-    }
-    
-    // 答案正确，记录friend poke
-    const { error } = await supabase
-        .from('friend_pokes')
-        .insert([{
-            sender_id: currentUserId,
-            receiver_id: targetUserId
-        }]);
-    
-    if (error) {
-        console.error(error);
-        showToast('Failed to sticky friend.', 'error');
-        return;
-    }
-    
-    btn.innerText = 'Stickied Today';
-    btn.disabled = true;
-    btn.style.opacity = '0.5';
-    btn.style.cursor = 'not-allowed';
-    
-    showToast('Stickied your friend!', 'success');
+
+        function showQuestion() {
+            if (remainingQuestions.length === 0) {
+                showToast('No more questions available', 'error');
+                closeModal();
+                resolve(false);
+                return;
+            }
+            const idx = Math.floor(Math.random() * remainingQuestions.length);
+            currentQuestion = remainingQuestions[idx];
+            remainingQuestions.splice(idx, 1);
+
+            document.getElementById('sqQuestion').textContent = currentQuestion.question;
+            const isNumber = currentQuestion.answer_type === 'number';
+            document.getElementById('sqNumberArea').style.display = isNumber ? 'block' : 'none';
+            document.getElementById('sqYesNoArea').style.display = isNumber ? 'none' : 'block';
+            if (isNumber) {
+                document.getElementById('sqNumberInput').value = '';
+                setTimeout(() => document.getElementById('sqNumberInput').focus(), 100);
+            }
+            modal.style.display = 'flex';
+        }
+
+        function checkAnswer(answer) {
+            const isCorrect = answer.toString().trim() === currentQuestion.answer.toString().trim();
+            if (!isCorrect) {
+                showToast('Wrong answer! Try again.', 'error');
+                return;
+            }
+            closeModal();
+            recordPoke();
+        }
+
+        async function recordPoke() {
+            const { error } = await supabase
+                .from('friend_pokes')
+                .insert([{ sender_id: currentUserId, receiver_id: targetUserId }]);
+            if (error) {
+                console.error(error);
+                showToast('Failed to sticky friend.', 'error');
+                resolve(false);
+                return;
+            }
+            btn.innerText = 'Stickied Today';
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            showToast('Stickied your friend!', 'success');
+            resolve(true);
+        }
+
+        // Bind events (overwrite previous onclick to avoid stacking)
+        document.getElementById('sqSubmitNumber').onclick = () => checkAnswer(document.getElementById('sqNumberInput').value);
+        document.getElementById('sqNumberInput').onkeydown = (e) => { if (e.key === 'Enter') checkAnswer(document.getElementById('sqNumberInput').value); };
+        document.getElementById('sqNextQuestion').onclick = showQuestion;
+        document.getElementById('sqAnswerYes').onclick = () => checkAnswer('Y');
+        document.getElementById('sqAnswerNo').onclick = () => checkAnswer('N');
+        document.getElementById('sqCancel').onclick = () => { closeModal(); resolve(false); };
+
+        showQuestion();
+    });
 }
 
 async function checkTodayCheckIn(currentUserId, targetUserId) {
@@ -520,20 +568,28 @@ function setupQuestionManagement(userId) {
     const panel = document.getElementById('questionPanel');
     const closeBtn = document.getElementById('closeQuestionBtn');
     const addBtn = document.getElementById('addQuestionBtn');
-    
+
     btn.style.display = 'flex';
-    
+
+    function resetFormState() {
+        document.getElementById('addQuestionForm').style.display = 'none';
+        document.getElementById('addQuestionBtnArea').style.display = 'block';
+    }
+
     btn.onclick = () => {
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-        if (panel.style.display === 'block') {
+        const isHidden = panel.style.display === 'none' || panel.style.display === '';
+        panel.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+            resetFormState();
             loadUserQuestions(userId);
         }
     };
-    
+
     closeBtn.onclick = () => {
         panel.style.display = 'none';
+        resetFormState();
     };
-    
+
     addBtn.onclick = () => addNewQuestion(userId);
 }
 
@@ -564,57 +620,107 @@ async function loadUserQuestions(userId) {
 }
 
 async function addNewQuestion(userId) {
-    const question = prompt('Enter your security question:');
-    if (!question || question.trim().length < 5) {
-        showToast('Question must be at least 5 characters', 'error');
-        return;
+    const addQuestionForm = document.getElementById('addQuestionForm');
+    const addQuestionBtnArea = document.getElementById('addQuestionBtnArea');
+
+    // Reset steps and show form
+    addQuestionBtnArea.style.display = 'none';
+    addQuestionForm.style.display = 'block';
+    document.getElementById('aqStep1').style.display = 'block';
+    document.getElementById('aqStep2').style.display = 'none';
+    document.getElementById('aqStep3Number').style.display = 'none';
+    document.getElementById('aqStep3YesNo').style.display = 'none';
+    document.getElementById('aqQuestionInput').value = '';
+    document.getElementById('aqNumberInput').value = '';
+
+    let questionText = '';
+
+    function hideForm() {
+        addQuestionForm.style.display = 'none';
+        addQuestionBtnArea.style.display = 'block';
     }
-    
-    const answerType = confirm('Is the answer a number? (OK = Number, Cancel = Y/N)') ? 'number' : 'yesno';
-    
-    let answer;
-    if (answerType === 'number') {
-        answer = prompt('Enter the answer (number):');
-        if (!answer || isNaN(answer)) {
+    function goToStep1() {
+        document.getElementById('aqStep2').style.display = 'none';
+        document.getElementById('aqStep3Number').style.display = 'none';
+        document.getElementById('aqStep3YesNo').style.display = 'none';
+        document.getElementById('aqStep1').style.display = 'block';
+        document.getElementById('aqQuestionInput').focus();
+    }
+    function goToStep2() {
+        document.getElementById('aqStep1').style.display = 'none';
+        document.getElementById('aqStep3Number').style.display = 'none';
+        document.getElementById('aqStep3YesNo').style.display = 'none';
+        document.getElementById('aqStep2').style.display = 'block';
+    }
+    function goToStep3(type) {
+        document.getElementById('aqStep2').style.display = 'none';
+        if (type === 'number') {
+            document.getElementById('aqStep3Number').style.display = 'block';
+            setTimeout(() => document.getElementById('aqNumberInput').focus(), 50);
+        } else {
+            document.getElementById('aqStep3YesNo').style.display = 'block';
+        }
+    }
+    async function submitQuestion(q, type, ans) {
+        if (type === 'number' && (ans === '' || isNaN(Number(ans)))) {
             showToast('Answer must be a valid number', 'error');
             return;
         }
-    } else {
-        const isYes = confirm('Is the answer YES? (OK = Yes, Cancel = No)');
-        answer = isYes ? 'Y' : 'N';
+        const { error } = await supabase.from('user_questions').insert([{
+            user_id: userId,
+            question: q,
+            answer: ans.toString(),
+            answer_type: type
+        }]);
+        if (error) {
+            console.error(error);
+            showToast('Error adding question', 'error');
+            return;
+        }
+        hideForm();
+        showToast('Question added!', 'success');
+        loadUserQuestions(userId);
     }
-    
-    const { error } = await supabase.from('user_questions').insert([{
-        user_id: userId,
-        question: question.trim(),
-        answer: answer.toString(),
-        answer_type: answerType
-    }]);
-    
-    if (error) {
-        console.error(error);
-        showToast('Error adding question', 'error');
-        return;
-    }
-    
-    showToast('Question added!', 'success');
-    loadUserQuestions(userId);
+
+    // Step 1 events
+    document.getElementById('aqStep1Cancel').onclick = hideForm;
+    document.getElementById('aqStep1Next').onclick = () => {
+        questionText = document.getElementById('aqQuestionInput').value.trim();
+        if (questionText.length < 5) { showToast('Question must be at least 5 characters', 'error'); return; }
+        goToStep2();
+    };
+    document.getElementById('aqQuestionInput').onkeydown = (e) => { if (e.key === 'Enter') document.getElementById('aqStep1Next').click(); };
+
+    // Step 2 events
+    document.getElementById('aqStep2Back').onclick = goToStep1;
+    document.getElementById('aqTypeNumber').onclick = () => goToStep3('number');
+    document.getElementById('aqTypeYesNo').onclick = () => goToStep3('yesno');
+
+    // Step 3a events
+    document.getElementById('aqNumberBack').onclick = goToStep2;
+    document.getElementById('aqNumberSubmit').onclick = () => submitQuestion(questionText, 'number', document.getElementById('aqNumberInput').value);
+    document.getElementById('aqNumberInput').onkeydown = (e) => { if (e.key === 'Enter') document.getElementById('aqNumberSubmit').click(); };
+
+    // Step 3b events
+    document.getElementById('aqYesNoBack').onclick = goToStep2;
+    document.getElementById('aqAnswerYes').onclick = () => submitQuestion(questionText, 'yesno', 'Y');
+    document.getElementById('aqAnswerNo').onclick = () => submitQuestion(questionText, 'yesno', 'N');
+
+    setTimeout(() => document.getElementById('aqQuestionInput').focus(), 50);
 }
 
 window.deleteQuestion = async function(questionId, userId) {
-    if (!confirm('Delete this question?')) return;
-    
     const { error } = await supabase
         .from('user_questions')
         .delete()
         .eq('id', questionId);
-    
+
     if (error) {
         console.error(error);
         showToast('Error deleting question', 'error');
         return;
     }
-    
+
     showToast('Question deleted', 'success');
     loadUserQuestions(userId);
 };

@@ -19,6 +19,8 @@
         .action-btn { width: 30px; height: 30px; background: #000; color: #fff; border: 2px solid #000; border-radius: 0; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; font-weight: 800; transition: all 0.2s; box-shadow: 1px 1px 0 rgba(0,0,0,0.8); }
         .action-btn:hover { background: #fff; color: #000; border: 2px solid #000; transform: scale(1.1); box-shadow: 2px 2px 0 rgba(0,0,0,0.8); }
         .action-btn:active { transform: scale(0.95); box-shadow: 1px 1px 0 rgba(0,0,0,1); }
+        .action-btn.confirm-delete { width: auto; padding: 0 8px; background: #c00; border-color: #c00; font-size: 11px; letter-spacing: 0.5px; }
+        .action-btn.confirm-delete:hover { background: #fff; color: #c00; border-color: #c00; }
     </style>
 </head>
 <body>
@@ -28,6 +30,7 @@
             <a href="dlc.html">DLC</a>
             <a href="index.html">Home</a>
             <a href="leaderboard.html">Rank</a>
+            <a href="social.html">Social</a>
             <a href="gallery.html">Gallery</a>
             <a href="profile.html">Me</a>
             <a id="authBtn" href="login.html">Login</a>
@@ -44,6 +47,7 @@
     <script type="module">
         import supabase from './js/supabaseClient.js';
         import { getCurrentUser } from './js/auth.js';
+        import { showToast } from './js/utils.js';
 
         async function checkAuth() {
             const user = await getCurrentUser();
@@ -98,17 +102,37 @@
             grid.addEventListener('click', handleGridClick);
         }
         
-        // 事件委托处理点击
+        // 事件委托处理点击（两次点击确认删除）
         function handleGridClick(e) {
             const downloadBtn = e.target.closest('.download-btn');
             const deleteBtn = e.target.closest('.delete-btn');
-            
+            const confirmBtn = e.target.closest('.confirm-delete');
+
+            // Reset any pending confirm buttons when clicking elsewhere
+            if (!confirmBtn && !deleteBtn) {
+                document.querySelectorAll('.confirm-delete').forEach(b => {
+                    b.textContent = '×';
+                    b.classList.remove('confirm-delete');
+                });
+            }
+
             if (downloadBtn) {
                 const url = downloadBtn.dataset.url;
                 const date = downloadBtn.dataset.date;
                 downloadPhoto(url, date);
             } else if (deleteBtn) {
-                const id = deleteBtn.dataset.id;
+                // First click: switch to confirm state
+                document.querySelectorAll('.confirm-delete').forEach(b => {
+                    b.textContent = '×';
+                    b.classList.remove('confirm-delete');
+                });
+                deleteBtn.textContent = 'Sure?';
+                deleteBtn.classList.add('confirm-delete');
+            } else if (confirmBtn) {
+                // Second click: execute delete
+                const id = confirmBtn.dataset.id;
+                confirmBtn.textContent = '×';
+                confirmBtn.classList.remove('confirm-delete');
                 deletePhoto(id);
             }
         }
@@ -125,16 +149,9 @@
 
         // 删除照片
         async function deletePhoto(photoId) {
-            console.log('Deleting photo with ID:', photoId);
-            if (!confirm('Delete this photo?')) return;
-            
             const user = await getCurrentUser();
-            console.log('Current user:', user?.id);
-            if (!user) {
-                alert('Please login first.');
-                return;
-            }
-            
+            if (!user) { showToast('Please login first.', 'error'); return; }
+
             try {
                 // 1. 删除 check_in 记录
                 const { data, error } = await supabase
@@ -143,34 +160,32 @@
                     .eq('id', photoId)
                     .eq('user_id', user.id)
                     .select();
-                
-                console.log('Delete result:', { data, error });
-                
+
                 if (error) {
                     console.error('Delete error:', error);
-                    alert('Failed to delete photo: ' + error.message);
+                    showToast('Failed to delete: ' + error.message, 'error');
                     return;
                 }
-                
+
                 // 2. 减少签到计数
                 const { data: profile } = await supabase
                     .from('profiles')
                     .select('total_check_ins')
                     .eq('id', user.id)
                     .single();
-                
+
                 if (profile && profile.total_check_ins > 0) {
                     await supabase
                         .from('profiles')
                         .update({ total_check_ins: profile.total_check_ins - 1 })
                         .eq('id', user.id);
                 }
-                
-                alert('Photo deleted successfully!');
-                loadGallery(); // 重新加载
+
+                showToast('Photo deleted', 'success');
+                loadGallery();
             } catch (err) {
                 console.error('Catch error:', err);
-                alert('Error: ' + err.message);
+                showToast('Error: ' + err.message, 'error');
             }
         }
 

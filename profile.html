@@ -17,6 +17,9 @@
         .comments-section { margin-top: 10px !important; padding-top: 10px !important; border-top: 1px solid #000; flex: 1; display: flex; flex-direction: column; min-height: 0; }
         #commentsList { overflow-y: auto; flex: 1; margin-bottom: 8px; }
         .comment-input-area { flex-shrink: 0; }
+        /* Shared inline form input style (overrides base.css input defaults) */
+        .inline-input { padding: 8px 10px; font-size: 13px; min-width: 0; box-sizing: border-box; }
+        .inline-input:focus { background: #fafafa; box-shadow: none; }
     </style>
 </head>
 <body>
@@ -26,6 +29,7 @@
             <a href="dlc.html">DLC</a>
             <a href="index.html">Home</a>
             <a href="leaderboard.html">Rank</a>
+            <a href="social.html">Social</a>
             <a href="gallery.html">Gallery</a>
             <a href="profile.html">Me</a>
             <a id="authBtn" href="login.html">Login</a>
@@ -48,7 +52,7 @@
                     </div>
                     
                     <div id="editNameContainer" style="display:none; margin-top:5px;">
-                        <input type="text" id="newNameInput" placeholder="New name" style="width:120px; padding:5px;">
+                        <input type="text" id="newNameInput" placeholder="New name" class="inline-input" style="width:120px;">
                         <button id="saveNameBtn" class="primary-btn" style="padding:6px 10px; font-size:12px;">Save</button>
                     </div>
 
@@ -112,8 +116,74 @@
             <button id="closeQuestionBtn" class="close-notif-btn">×</button>
         </div>
         <div id="questionList" class="notif-list"></div>
-        <div style="padding: 15px; border-top: 1px solid #ddd;">
+
+        <!-- Inline multi-step add-question form -->
+        <div id="addQuestionForm" style="display:none; padding:15px; border-top:1px solid #ddd;">
+            <!-- Step 1: question text -->
+            <div id="aqStep1">
+                <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Your Question</p>
+                <input type="text" id="aqQuestionInput" placeholder="e.g. How many pets do I have?" class="inline-input" style="width:100%;margin-bottom:10px;">
+                <div style="display:flex;gap:8px;">
+                    <button class="primary-btn" id="aqStep1Next" style="flex:1;">Next</button>
+                    <button class="primary-btn secondary-btn" id="aqStep1Cancel" style="flex:1;">Cancel</button>
+                </div>
+            </div>
+            <!-- Step 2: answer type -->
+            <div id="aqStep2" style="display:none;">
+                <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Answer Type</p>
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <button class="primary-btn" id="aqTypeNumber" style="flex:1;">Number</button>
+                    <button class="primary-btn secondary-btn" id="aqTypeYesNo" style="flex:1;">Yes / No</button>
+                </div>
+                <button class="primary-btn secondary-btn" id="aqStep2Back" style="width:100%;">Back</button>
+            </div>
+            <!-- Step 3a: number answer -->
+            <div id="aqStep3Number" style="display:none;">
+                <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Answer (Number)</p>
+                <input type="number" id="aqNumberInput" placeholder="Enter the correct number..." class="inline-input" style="width:100%;margin-bottom:10px;">
+                <div style="display:flex;gap:8px;">
+                    <button class="primary-btn" id="aqNumberSubmit" style="flex:1;">Save</button>
+                    <button class="primary-btn secondary-btn" id="aqNumberBack" style="flex:1;">Back</button>
+                </div>
+            </div>
+            <!-- Step 3b: yes/no answer -->
+            <div id="aqStep3YesNo" style="display:none;">
+                <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Answer</p>
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <button class="primary-btn" id="aqAnswerYes" style="flex:1;">Yes</button>
+                    <button class="primary-btn secondary-btn" id="aqAnswerNo" style="flex:1;">No</button>
+                </div>
+                <button class="primary-btn secondary-btn" id="aqYesNoBack" style="width:100%;">Back</button>
+            </div>
+        </div>
+
+        <!-- Add button area (shown when form is hidden) -->
+        <div id="addQuestionBtnArea" style="padding:15px; border-top:1px solid #ddd;">
             <button id="addQuestionBtn" class="primary-btn" style="width: 100%;">+ Add Question</button>
+        </div>
+    </div>
+
+    <!-- Security Question Modal (used when stickying a friend) -->
+    <div id="securityQuestionModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#fff; border:3px solid #000; padding:28px; max-width:340px; width:90%; font-family:'Courier New',monospace;">
+            <p style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:0 0 12px;">Security Question</p>
+            <p id="sqQuestion" style="margin:0 0 20px;font-size:15px;line-height:1.5;font-weight:600;font-family:inherit;"></p>
+            <!-- Number answer area -->
+            <div id="sqNumberArea" style="display:none;">
+                <input type="number" id="sqNumberInput" placeholder="Enter number..." class="inline-input" style="width:100%;font-size:15px;padding:10px;margin-bottom:12px;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <button class="primary-btn" id="sqSubmitNumber" style="flex:1;">Submit</button>
+                    <button class="primary-btn secondary-btn" id="sqNextQuestion" style="flex:1;">Next Q</button>
+                </div>
+            </div>
+            <!-- Yes/No answer area -->
+            <div id="sqYesNoArea" style="display:none;">
+                <div style="display:flex;gap:8px;margin-bottom:8px;">
+                    <button class="primary-btn" id="sqAnswerYes" style="flex:1;">Yes</button>
+                    <button class="primary-btn secondary-btn" id="sqAnswerNo" style="flex:1;">No</button>
+                </div>
+            </div>
+            <button class="primary-btn secondary-btn" id="sqCancel" style="width:100%;margin-top:4px;">Cancel</button>
         </div>
     </div>
 
