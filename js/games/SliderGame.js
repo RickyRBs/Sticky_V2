@@ -20,7 +20,7 @@ export default class SliderGame {
                 <div class="slider-track" id="track">
                     <div class="slider-target" id="target" style="left: ${targetPercent}%"></div>
                     <div class="slider-thumb" id="thumb">
-                        <span class="thumb-icon">➜</span>
+                        <span class="thumb-icon">&gt;</span>
                     </div>
                 </div>
                 <div class="slider-hint">Drag the arrow to match the marker</div>

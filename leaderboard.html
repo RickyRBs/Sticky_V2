@@ -105,6 +105,11 @@
 
             <div id="friendsView" style="display: none;">
                 <div class="view-content">
+                    <div id="friendRequestsSection" style="margin-bottom: 20px; display: none;">
+                        <h3 style="margin: 0 0 15px 0; font-size: 14px; font-weight: 800; text-align: center; color: #666; text-transform: uppercase; letter-spacing: 1px;">Friend Requests</h3>
+                        <div id="friendRequestsList" class="rank-list"></div>
+                    </div>
+                    <h3 style="margin: 0 0 15px 0; font-size: 14px; font-weight: 800; text-align: center; color: #666; text-transform: uppercase; letter-spacing: 1px;">My Friends</h3>
                     <div id="friendsList" class="rank-list">Loading...</div>
                 </div>
             </div>
@@ -217,26 +222,96 @@
             renderList(document.getElementById('groupRankList'), profiles);
         }
 
-        // --- 3. Friends Logic (新增) ---
+        // --- 3. Friends Logic ---
         async function loadFriends() {
             const list = document.getElementById('friendsList');
             list.innerHTML = '<p style="color:#aaa">Loading friends...</p>';
 
-            // 查询 friends 表 (我是 user_id)
-            const { data: friendsData } = await supabase
+            // 加载好友请求
+            await loadFriendRequests();
+
+            // 查询我的好友（双向查询）
+            const { data: myFriends } = await supabase
                 .from('friends')
                 .select(`friend_id`)
                 .eq('user_id', currentUser.id);
 
-            if (!friendsData || friendsData.length === 0) {
+            if (!myFriends || myFriends.length === 0) {
                 list.innerHTML = '<p class="empty-state">Keep Sticking</p>';
                 return;
             }
 
-            const friendIds = friendsData.map(f => f.friend_id);
+            const friendIds = myFriends.map(f => f.friend_id);
             const { data: profiles } = await supabase.from('profiles').select('*').in('id', friendIds);
             renderList(list, profiles);
         }
+
+        async function loadFriendRequests() {
+            const section = document.getElementById('friendRequestsSection');
+            const list = document.getElementById('friendRequestsList');
+
+            // 查询我收到的待处理请求
+            const { data: requests } = await supabase
+                .from('friend_requests')
+                .select(`
+                    id,
+                    sender_id,
+                    created_at,
+                    profiles:sender_id (username, id)
+                `)
+                .eq('receiver_id', currentUser.id)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+
+            if (!requests || requests.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = requests.map(r => {
+                return `
+                <div class="rank-item" style="justify-content: space-between;">
+                    <div class="rank-left">
+                        <div class="user-info">
+                            <span class="user-name">${r.profiles?.username || 'User'}</span>
+                            <span class="user-id-tag">UID: ${r.sender_id.substring(0, 6)}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="primary-btn" style="padding: 6px 12px; font-size: 12px;" onclick="acceptFriendRequest('${r.id}', '${r.sender_id}')">Accept</button>
+                        <button class="primary-btn secondary-btn" style="padding: 6px 12px; font-size: 12px;" onclick="rejectFriendRequest('${r.id}')">Decline</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        window.acceptFriendRequest = async function(requestId, senderId) {
+            showToast("Accepting...", "info");
+
+            // 1. 更新请求状态
+            await supabase.from('friend_requests')
+                .update({ status: 'accepted' })
+                .eq('id', requestId);
+
+            // 2. 添加双向好友关系
+            await supabase.from('friends').insert([
+                { user_id: currentUser.id, friend_id: senderId },
+                { user_id: senderId, friend_id: currentUser.id }
+            ]);
+
+            showToast("Friend added!", "success");
+            loadFriends();
+        };
+
+        window.rejectFriendRequest = async function(requestId) {
+            await supabase.from('friend_requests')
+                .update({ status: 'rejected' })
+                .eq('id', requestId);
+
+            showToast("Request rejected", "info");
+            loadFriends();
+        };
 
         // --- 4. Group Check-in Rank ---
         async function loadGroupCheckInRank() {
@@ -246,7 +321,7 @@
             // 查询所有groups，按total_group_check_ins降序排列
             const { data: groups } = await supabase
                 .from('groups')
-                .select('id, name, invite_code, total_group_check_ins')
+                .select('id, name, total_group_check_ins')
                 .order('total_group_check_ins', { ascending: false })
                 .limit(50);
 
@@ -255,7 +330,7 @@
                 return;
             }
 
-            // 渲染group排行榜
+            // 渲染group排行榜（不显示邀请码）
             list.innerHTML = groups.map((g, i) => {
                 const checkIns = g.total_group_check_ins || 0;
                 return `
@@ -264,7 +339,6 @@
                         <div class="rank-idx">${i + 1}</div>
                         <div class="user-info">
                             <span class="user-name">${g.name}</span>
-                            <span class="user-id-tag">CODE: ${g.invite_code}</span>
                         </div>
                     </div>
                     <div class="rank-days">${checkIns}<span>d</span></div>
@@ -273,46 +347,57 @@
         }
 
         async function handleAddFriend() {
-            const uidInput = prompt("Enter Friend's UID (6 chars or full ID):");
+            const uidInput = prompt("Enter Friend's UID (first 6 chars or more):");
             if (!uidInput) return;
 
-            // 1. 模糊搜索用户 ID
-            // 这是一个简单的做法：前端查不到部分ID，所以我们尝试用整个 profiles 搜索
-            // 为了严谨，我们假设用户输入的是 ID 的前几位。
-            // Supabase 可以用 ilike 搜索 text 类型 ID，但 UUID 是特殊类型。
-            // 这里我们做一个简化的逻辑：先拉取一个大致范围，或者要求输入相对完整的 ID。
-            // *但在真实项目中，推荐通过 Username 搜索，或者必须输入完整 ID*
-            
-            // 这里我们改用：通过 ID 前缀搜索 (Supabase UUID 比较难做前缀搜索)，
-            // 既然我们显示的 UID 是前6位，我们可以尝试列出所有用户比对 (用户量少时)
-            // 或者直接要求输入完整 UUID (不够友好)。
-            
-            // ** 最佳方案 **: 既然是 Demo，我们允许用户输入 6位 UID，我们在 Edge Function 处理，
-            // 或者：我们直接全表扫描匹配前缀 (只适合小用户量)。
-            // 为了不卡死，我们还是改为 -> **输入对方的邮箱前缀 (Username)** 可能更准，
-            // 但你要求是 ID。那我们在前端过滤一下。
-            
             showToast("Searching...", "info");
             
-            const { data: allUsers } = await supabase.from('profiles').select('id');
-            const target = allUsers.find(u => u.id.startsWith(uidInput));
+            // 搜索用户
+            const { data: allUsers } = await supabase.from('profiles').select('id, username');
+            const target = allUsers.find(u => u.id.toLowerCase().startsWith(uidInput.toLowerCase()));
 
             if (!target) return showToast("User not found!", "error");
             if (target.id === currentUser.id) return showToast("Cannot add yourself", "error");
 
-            // 2. 添加好友 (双向)
-            // 我加他
-            const { error: e1 } = await supabase.from('friends').insert([{ user_id: currentUser.id, friend_id: target.id }]);
-            // 他加我 (自动互粉)
-            const { error: e2 } = await supabase.from('friends').insert([{ user_id: target.id, friend_id: currentUser.id }]);
+            // 检查是否已经是好友
+            const { data: existingFriend } = await supabase
+                .from('friends')
+                .select('id')
+                .eq('user_id', currentUser.id)
+                .eq('friend_id', target.id)
+                .maybeSingle();
 
-            if (e1 && e1.code === '23505') {
-                showToast("Already friends!", "info");
-            } else if (e1) {
-                showToast("Error adding friend", "error");
+            if (existingFriend) return showToast("Already friends!", "info");
+
+            // 检查是否已发送过请求
+            const { data: existingRequest } = await supabase
+                .from('friend_requests')
+                .select('id, status')
+                .eq('sender_id', currentUser.id)
+                .eq('receiver_id', target.id)
+                .maybeSingle();
+
+            if (existingRequest) {
+                if (existingRequest.status === 'pending') {
+                    return showToast("Request already sent!", "info");
+                }
+                // 如果之前被拒绝，可以重新发送
+            }
+
+            // 发送好友请求
+            const { error } = await supabase.from('friend_requests').insert([{
+                sender_id: currentUser.id,
+                receiver_id: target.id,
+                status: 'pending'
+            }]);
+
+            if (error && error.code === '23505') {
+                showToast("Request already exists!", "info");
+            } else if (error) {
+                console.error(error);
+                showToast("Error sending request", "error");
             } else {
-                showToast("Friend Added!", "success");
-                loadFriends();
+                showToast(`Friend request sent to ${target.username}!`, "success");
             }
         }
 

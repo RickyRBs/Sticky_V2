@@ -22,7 +22,7 @@ async function init() {
         // 2. 检查是否是新的一天，如果是则重置mood
         await checkAndResetDailyMood(user.id);
 
-        // 3. ✨ 检查有没有人戳你或留言
+        // 3. 检查有没有人戳你或留言
         checkNotifications(user.id);
 
         // 4. 加载游戏和天数
@@ -35,7 +35,7 @@ async function init() {
     }
 }
 
-// ✨ 核心功能：检查通知
+// 核心功能：检查通知
 async function checkNotifications(userId) {
     const notifList = document.getElementById('notificationList');
     const notifBadge = document.getElementById('notifBadge');
@@ -289,7 +289,7 @@ async function setupMainMoodPicker() {
         }
     });
 
-    const moods = ['🔥', '💀', '🍀', '💤', '🎉', '💻', '☕', '😭', '😡', '❤️', '🚀', '✨'];
+    const moods = ['🍀', '💤', '🎉', '💻', '☕', '😭', '😡', '❤️'];
     picker.innerHTML = `
         <div class="emoji-picker-header">SET YOUR MOOD</div>
         <div class="emoji-picker-grid">
@@ -316,14 +316,20 @@ async function setupMainMoodPicker() {
 // 检查并重置每日mood
 async function checkAndResetDailyMood(userId) {
     const today = new Date().toISOString().split('T')[0];
-    const lastVisitKey = `last_visit_date_${userId}`;
-    const lastVisitDate = localStorage.getItem(lastVisitKey);
     
-    // 如果是新的一天，重置mood为默认值⚙️
-    if (lastVisitDate !== today) {
+    // 检查用户今天是否已经签到过
+    const { data: todayCheckIn } = await supabase
+        .from('check_ins')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('check_in_date', today)
+        .maybeSingle();
+    
+    // 如果今天还没签到，说明是新的一天，重置mood为默认值⚙️
+    if (!todayCheckIn) {
         await supabase.from('profiles').update({ mood: '⚙️' }).eq('id', userId);
-        localStorage.setItem(lastVisitKey, today);
     }
+    // 如果今天已经签到过，保留当前mood（不做任何操作）
 }
 
 init();

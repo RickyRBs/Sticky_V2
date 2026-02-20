@@ -122,7 +122,7 @@ export default class ReactionGame {
 
     win() {
         this.mode = 'done';
-        this.stateEl.textContent = 'PASS ✓';
+        this.stateEl.textContent = 'PASS';
         this.hintEl.textContent = `2 good reactions under ${this.GOOD_MS}ms.`;
         clearTimeout(this.timer);
         showToast('Perfect reaction time!', 'success');

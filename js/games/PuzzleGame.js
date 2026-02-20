@@ -12,7 +12,7 @@ export default class PuzzleGame {
 
     render() {
         // 准备 4 对 Emoji
-        const emojis = ['🔥', '🔥', '💀', '💀', '🍀', '🍀', '💎', '💎'];
+        const emojis = ['A', 'A', 'B', 'B', 'C', 'C', 'D', 'D'];
         // 洗牌
         emojis.sort(() => Math.random() - 0.5);
 

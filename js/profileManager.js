@@ -1,5 +1,5 @@
 import supabase from './supabaseClient.js';
-import { getCurrentUser } from './auth.js';
+import { getCurrentUser, logout } from './auth.js';
 import { showToast } from './utils.js';
 import { CalendarRender } from './CalendarRender.js';
 
@@ -9,6 +9,17 @@ const targetId = urlParams.get('id');
 async function initProfile() {
     const currentUser = await getCurrentUser();
     if (!currentUser) return window.location.href = 'login.html';
+
+    // 设置登录按钮
+    const authBtn = document.getElementById('authBtn');
+    if (authBtn) {
+        authBtn.innerText = 'Logout';
+        authBtn.href = '#';
+        authBtn.onclick = async (e) => { 
+            e.preventDefault(); 
+            await logout(); 
+        };
+    }
 
     const profileId = targetId || currentUser.id;
     const isMe = (profileId === currentUser.id);
@@ -34,6 +45,8 @@ async function initProfile() {
         // 显示 friend check-ins
         loadFriendCheckIns(profile.id);
         document.getElementById('friendCheckInsSection').style.display = 'block';
+        // 显示问题管理按钮
+        setupQuestionManagement(profile.id);
     } else {
         // 隐藏所有编辑入口
         document.querySelectorAll('.edit-only').forEach(el => el.style.display = 'none');
@@ -45,7 +58,7 @@ async function initProfile() {
 
 // 渲染 Emoji 选择器
 function createEmojiPicker(userId) {
-    const moods = ['🔥', '💀', '🍀', '💤', '🎉', '💻', '☕', '😭', '😡', '❤️', '🚀', '✨'];
+    const moods = ['🍀', '💤', '🎉', '💻', '☕', '😭', '😡', '❤️'];
     
     // 创建遮罩层
     const overlay = document.createElement('div');
@@ -78,7 +91,7 @@ function createEmojiPicker(userId) {
             await supabase.from('profiles').update({ mood: emoji }).eq('id', userId);
             document.getElementById('moodText').innerText = emoji;
             
-            // B. ⚠️ 核心：尝试更新今天的 check_ins 记录 (实现"以此为准")
+            // B. 尝试更新今天的 check_ins 记录 (实现"以此为准")
             const today = new Date().toISOString().split('T')[0];
             
             // 不管今天有没有签到，试着更新一下 check_in_date = today 的那条记录
@@ -92,7 +105,7 @@ function createEmojiPicker(userId) {
             container.classList.remove('show');
             overlay.classList.remove('show');
             
-            // ⚠️ 直接用新的 emoji 刷新日历，不需要重新查询
+            // 直接用新的 emoji 刷新日历，不需要重新查询
             const { data: checks } = await supabase
                 .from('check_ins')
                 .select('check_in_date, mood')
@@ -216,7 +229,7 @@ async function loadUserGroups(uid) {
 }
 
 async function loadUserCalendar(userId) {
-    // ⚠️ 修改 select，多取一个 mood
+    // 修改 select，多取一个 mood
     const { data: checks } = await supabase
         .from('check_ins')
         .select('check_in_date, mood') 
@@ -254,24 +267,32 @@ async function loadComments(tid, uid) {
     if (!data || data.length === 0) {
         list.innerHTML = '<p style="color:#aaa">No notes.</p>';
     } else {
-        // 分离主评论和回复
-        const mainComments = data.filter(c => !c.parent_id);
-        const replies = data.filter(c => c.parent_id);
-        
+        // 分离主评论和回复，用 Map 预先索引回复（O(n) 替代 O(n²)）
+        const mainComments = [];
+        const repliesMap = new Map();
+        data.forEach(c => {
+            if (!c.parent_id) {
+                mainComments.push(c);
+            } else {
+                if (!repliesMap.has(c.parent_id)) repliesMap.set(c.parent_id, []);
+                repliesMap.get(c.parent_id).push(c);
+            }
+        });
+
         // 构建评论树
         let html = '';
         mainComments.forEach(comment => {
             const isOwn = comment.author_id === uid;
-            const replyBtn = !isOwn ? `<button class="reply-btn" data-comment-id="${comment.id}" data-author="${comment.author.username}">↩️</button>` : '';
-            
+            const replyBtn = !isOwn ? `<button class="reply-btn" data-comment-id="${comment.id}" data-author="${comment.author.username}">Reply</button>` : '';
+
             html += `<div class="comment-thread">
                 <div class="comment-item">
                     <strong>${comment.author.username}</strong>: ${comment.content}
                     ${replyBtn}
                 </div>`;
-            
+
             // 显示这条评论的回复
-            const commentReplies = replies.filter(r => r.parent_id === comment.id);
+            const commentReplies = repliesMap.get(comment.id) || [];
             commentReplies.forEach(reply => {
                 html += `<div class="comment-item comment-reply">
                     <strong>${reply.author.username}</strong>: ${reply.content}
@@ -325,39 +346,116 @@ function setupFriendCheckIn(currentUserId, targetUserId, targetUsername) {
     const btn = document.getElementById('friendCheckInBtn');
     btn.style.display = 'block';
     
-    // 检查今天是否已经 check-in 过
-    checkTodayCheckIn(currentUserId, targetUserId).then(alreadyChecked => {
-        if (alreadyChecked) {
-            btn.innerText = 'Stickied Today';
+    // 首先检查是否是好友关系
+    checkFriendship(currentUserId, targetUserId).then(isFriend => {
+        if (!isFriend) {
+            btn.innerText = 'Not Friends';
             btn.disabled = true;
             btn.style.opacity = '0.5';
             btn.style.cursor = 'not-allowed';
+            return;
         }
+        
+        // 检查今天是否已经 check-in 过
+        checkTodayCheckIn(currentUserId, targetUserId).then(alreadyChecked => {
+            if (alreadyChecked) {
+                btn.innerText = 'Stickied Today';
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            }
+        });
     });
     
     btn.onclick = async () => {
         if (btn.disabled) return;
         
-        const { error } = await supabase
-            .from('friend_pokes')
-            .insert([{
-                sender_id: currentUserId,
-                receiver_id: targetUserId
-            }]);
-        
-        if (error) {
-            console.error(error);
-            showToast('Failed to sticky friend.', 'error');
+        // 检查好友关系
+        const isFriend = await checkFriendship(currentUserId, targetUserId);
+        if (!isFriend) {
+            showToast('You must be friends to sticky!', 'error');
             return;
         }
         
-        btn.innerText = 'Stickied Today';
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-        btn.style.cursor = 'not-allowed';
+        // 获取目标用户的问题
+        const { data: questions } = await supabase
+            .from('user_questions')
+            .select('*')
+            .eq('user_id', targetUserId);
         
-        showToast('Stickied your friend!', 'success');
+        if (!questions || questions.length < 3) {
+            showToast(`${targetUsername} hasn't set up security questions yet (need 3+)`, 'error');
+            return;
+        }
+        
+        // 随机选择一个问题
+        await askSecurityQuestion(questions, currentUserId, targetUserId, targetUsername, btn);
     };
+}
+
+async function checkFriendship(userId1, userId2) {
+    const { data } = await supabase
+        .from('friends')
+        .select('id')
+        .eq('user_id', userId1)
+        .eq('friend_id', userId2)
+        .maybeSingle();
+    
+    return !!data;
+}
+
+async function askSecurityQuestion(questions, currentUserId, targetUserId, targetUsername, btn) {
+    // 随机选择一个问题
+    let currentQuestionIndex = Math.floor(Math.random() * questions.length);
+    let currentQuestion = questions[currentQuestionIndex];
+    
+    const answerInput = currentQuestion.answer_type === 'yesno' 
+        ? confirm(`Security Question:\n\n${currentQuestion.question}\n\n(OK = Yes, Cancel = No)`) ? 'Y' : 'N'
+        : prompt(`Security Question:\n\n${currentQuestion.question}\n\n(Enter a number, or type "NEXT" for another question)`);
+    
+    if (answerInput === null) {
+        return; // 用户取消
+    }
+    
+    // 如果输入NEXT，换一个问题
+    if (answerInput.toUpperCase() === 'NEXT' && currentQuestion.answer_type === 'number') {
+        const availableQuestions = questions.filter((q, i) => i !== currentQuestionIndex);
+        if (availableQuestions.length > 0) {
+            return askSecurityQuestion(availableQuestions, currentUserId, targetUserId, targetUsername, btn);
+        } else {
+            showToast('No more questions available', 'error');
+            return;
+        }
+    }
+    
+    // 验证答案
+    const isCorrect = answerInput.toString().trim() === currentQuestion.answer.toString().trim();
+    
+    if (!isCorrect) {
+        showToast('Wrong answer! Try again.', 'error');
+        return;
+    }
+    
+    // 答案正确，记录friend poke
+    const { error } = await supabase
+        .from('friend_pokes')
+        .insert([{
+            sender_id: currentUserId,
+            receiver_id: targetUserId
+        }]);
+    
+    if (error) {
+        console.error(error);
+        showToast('Failed to sticky friend.', 'error');
+        return;
+    }
+    
+    btn.innerText = 'Stickied Today';
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    
+    showToast('Stickied your friend!', 'success');
 }
 
 async function checkTodayCheckIn(currentUserId, targetUserId) {
@@ -413,5 +511,112 @@ function getTimeAgo(date) {
     if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
     return `${Math.floor(days / 30)} months ago`;
 }
+
+// ===================================
+// 问题管理功能
+// ===================================
+function setupQuestionManagement(userId) {
+    const btn = document.getElementById('questionManageBtn');
+    const panel = document.getElementById('questionPanel');
+    const closeBtn = document.getElementById('closeQuestionBtn');
+    const addBtn = document.getElementById('addQuestionBtn');
+    
+    btn.style.display = 'flex';
+    
+    btn.onclick = () => {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        if (panel.style.display === 'block') {
+            loadUserQuestions(userId);
+        }
+    };
+    
+    closeBtn.onclick = () => {
+        panel.style.display = 'none';
+    };
+    
+    addBtn.onclick = () => addNewQuestion(userId);
+}
+
+async function loadUserQuestions(userId) {
+    const list = document.getElementById('questionList');
+    list.innerHTML = '<p style="color:#aaa; text-align:center; padding:20px;">Loading...</p>';
+    
+    const { data: questions } = await supabase
+        .from('user_questions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+    
+    if (!questions || questions.length === 0) {
+        list.innerHTML = '<p style="color:#aaa; text-align:center; padding:20px;">No questions yet. Add at least 3 questions!</p>';
+        return;
+    }
+    
+    list.innerHTML = questions.map(q => `
+        <div class="notif-item" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px; border-bottom: 1px solid #eee;">
+            <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">${q.question}</div>
+                <div style="font-size: 11px; color: #666;">Answer: ${q.answer} (${q.answer_type === 'number' ? 'Number' : 'Y/N'})</div>
+            </div>
+            <button class="close-notif-btn" onclick="deleteQuestion('${q.id}', '${userId}')" style="position: static; margin-left: 10px;">×</button>
+        </div>
+    `).join('');
+}
+
+async function addNewQuestion(userId) {
+    const question = prompt('Enter your security question:');
+    if (!question || question.trim().length < 5) {
+        showToast('Question must be at least 5 characters', 'error');
+        return;
+    }
+    
+    const answerType = confirm('Is the answer a number? (OK = Number, Cancel = Y/N)') ? 'number' : 'yesno';
+    
+    let answer;
+    if (answerType === 'number') {
+        answer = prompt('Enter the answer (number):');
+        if (!answer || isNaN(answer)) {
+            showToast('Answer must be a valid number', 'error');
+            return;
+        }
+    } else {
+        const isYes = confirm('Is the answer YES? (OK = Yes, Cancel = No)');
+        answer = isYes ? 'Y' : 'N';
+    }
+    
+    const { error } = await supabase.from('user_questions').insert([{
+        user_id: userId,
+        question: question.trim(),
+        answer: answer.toString(),
+        answer_type: answerType
+    }]);
+    
+    if (error) {
+        console.error(error);
+        showToast('Error adding question', 'error');
+        return;
+    }
+    
+    showToast('Question added!', 'success');
+    loadUserQuestions(userId);
+}
+
+window.deleteQuestion = async function(questionId, userId) {
+    if (!confirm('Delete this question?')) return;
+    
+    const { error } = await supabase
+        .from('user_questions')
+        .delete()
+        .eq('id', questionId);
+    
+    if (error) {
+        console.error(error);
+        showToast('Error deleting question', 'error');
+        return;
+    }
+    
+    showToast('Question deleted', 'success');
+    loadUserQuestions(userId);
+};
 
 initProfile();

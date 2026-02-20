@@ -11,7 +11,6 @@ export default class CameraGame {
         // 显示相机加载界面
         this.container.innerHTML = `
             <div class="camera-loading">
-                <div class="camera-icon">📸</div>
                 <div class="loading-text">Starting camera...</div>
             </div>
             <video id="video" style="display:none;" autoplay playsinline muted></video>
@@ -44,7 +43,6 @@ export default class CameraGame {
             showToast("Camera access required!", "error");
             this.container.innerHTML = `
                 <div class="camera-error">
-                    <div class="error-icon">⚠️</div>
                     <div class="error-title">Camera Access Denied</div>
                     <div class="error-message">Please allow camera access to complete check-in</div>
                 </div>
